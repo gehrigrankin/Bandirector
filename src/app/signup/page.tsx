@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { SignupForm } from "@/components/auth/SignupForm";
+import { JamUnavailable } from "@/components/JamUnavailable";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default function SignupPage() {
+  if (!isSupabaseConfigured()) return <JamUnavailable />;
   return (
     <main className="flex min-h-dvh flex-col px-6 py-10 safe-top safe-bottom">
       <Link href="/" className="text-sm text-text-muted">

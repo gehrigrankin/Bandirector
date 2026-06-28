@@ -2,8 +2,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { JoinRoomForm } from "@/components/room/JoinRoomForm";
 import { TopNav } from "@/components/ui/TopNav";
+import { JamUnavailable } from "@/components/JamUnavailable";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default function JamPage() {
+  if (!isSupabaseConfigured()) return <JamUnavailable />;
   return (
     <div className="flex min-h-dvh flex-col">
       <TopNav />

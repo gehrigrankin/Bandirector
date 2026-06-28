@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RoomView } from "@/components/room/RoomView";
 import { normalizeCode } from "@/lib/utils/code";
+import { JamUnavailable } from "@/components/JamUnavailable";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +12,8 @@ export default async function RoomPage({
 }: {
   params: { code: string };
 }) {
+  if (!isSupabaseConfigured()) return <JamUnavailable />;
+
   const code = normalizeCode(params.code);
   if (code.length !== 6) notFound();
 

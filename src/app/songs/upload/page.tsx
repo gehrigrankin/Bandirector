@@ -2,10 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { UploadForm } from "@/components/upload/UploadForm";
+import { JamUnavailable } from "@/components/JamUnavailable";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
 
 export default async function UploadPage() {
+  if (!isSupabaseConfigured()) return <JamUnavailable />;
   const supabase = createClient();
   const {
     data: { user },

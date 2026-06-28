@@ -4,10 +4,13 @@ import { Pencil, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CreateRoomButton } from "@/components/room/CreateRoomButton";
 import { FavoriteToggle } from "@/components/library/FavoriteToggle";
+import { JamUnavailable } from "@/components/JamUnavailable";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryPage() {
+  if (!isSupabaseConfigured()) return <JamUnavailable />;
   const supabase = createClient();
   const {
     data: { user },

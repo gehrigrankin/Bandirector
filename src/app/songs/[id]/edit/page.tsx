@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ChordEditor } from "@/components/editor/ChordEditor";
+import { JamUnavailable } from "@/components/JamUnavailable";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +12,7 @@ export default async function EditPage({
 }: {
   params: { id: string };
 }) {
+  if (!isSupabaseConfigured()) return <JamUnavailable />;
   const supabase = createClient();
   const { data: song } = await supabase
     .from("songs")

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateRoomCode } from "@/lib/utils/code";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export async function POST() {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "Jam is not configured" }, { status: 503 });
+  }
   const supabase = createClient();
   const {
     data: { user },
