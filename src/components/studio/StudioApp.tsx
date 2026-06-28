@@ -3,13 +3,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
 import { getInstrument, type InstrumentId } from "@/lib/audio/instruments";
-import { defaultStyleId, getStyle } from "@/lib/audio/patterns";
+import {
+  clonePattern,
+  defaultPattern,
+  emptyPatternLike,
+  presetsFor,
+  renderPattern,
+  type Articulation,
+  type DrumVoice,
+  type Pattern,
+} from "@/lib/audio/patterns";
 import { chordToMidi } from "@/lib/music/chord";
 import type { ChordStep, Selection, Track } from "@/components/studio/types";
 import { InstrumentPicker } from "@/components/studio/InstrumentPicker";
 import { ProgressionBar } from "@/components/studio/ProgressionBar";
 import { ChordGrid } from "@/components/studio/ChordGrid";
-import { StylePicker } from "@/components/studio/StylePicker";
+import { StepSequencer } from "@/components/studio/StepSequencer";
 import { FeelControls } from "@/components/studio/FeelControls";
 import { LoopPad } from "@/components/studio/LoopPad";
 import { TrackRack } from "@/components/studio/TrackRack";
@@ -18,11 +27,10 @@ import { TransportBar } from "@/components/studio/TransportBar";
 const PREVIEW_VOLUME = 0.85;
 
 /** Turn a track into the bar-event closure the scheduler runs. Every track
- *  follows the shared progression: `barIndex` selects the current chord, so
- *  all layers change together. */
+ *  follows the shared progression (barIndex picks the chord) and renders its
+ *  own step pattern over it. */
 function buildScheduled(t: Track, progression: ChordStep[]): ScheduledTrack {
   const def = getInstrument(t.instrumentId);
-  const style = getStyle(def.family, t.styleId);
   return {
     id: t.id,
     instrumentId: t.instrumentId,
@@ -35,15 +43,15 @@ function buildScheduled(t: Track, progression: ChordStep[]): ScheduledTrack {
         ? []
         : chordToMidi(step.root, step.quality, t.octave);
       const rootMidi = chordNotes[0] ?? 60;
-      return style.generate({ chordNotes, rootMidi, barSeconds, octave: t.octave });
+      return renderPattern(t.pattern, { chordNotes, rootMidi, barSeconds, octave: t.octave });
     },
   };
 }
 
-/** Default style + octave when switching to a new instrument. */
-function instrumentDefaults(id: InstrumentId): { styleId: string; octave: number } {
+/** Default pattern + octave when switching to a new instrument. */
+function instrumentDefaults(id: InstrumentId): { pattern: Pattern; octave: number } {
   const def = getInstrument(id);
-  return { styleId: defaultStyleId(def.family), octave: def.octave };
+  return { pattern: defaultPattern(def.family), octave: def.octave };
 }
 
 export function StudioApp() {
@@ -70,9 +78,7 @@ export function StudioApp() {
 
   const step = progression[Math.min(editIndex, progression.length - 1)];
 
-  // Live snapshot the scheduler reads each bar: the transient preview of the
-  // current selection, followed by every locked layer — all over the
-  // shared progression.
+  // Live snapshot the scheduler reads each bar.
   const scheduled = useMemo<ScheduledTrack[]>(() => {
     const preview = buildScheduled(
       { id: "preview", ...selection, volume: PREVIEW_VOLUME, muted: false, solo: false },
@@ -86,7 +92,7 @@ export function StudioApp() {
     scheduledRef.current = scheduled;
   }, [scheduled]);
 
-  // Keep the running transport in step with BPM / master volume changes.
+  // Keep the running transport in step with the controls.
   useEffect(() => {
     engine.setBpm(bpm);
   }, [engine, bpm]);
@@ -120,12 +126,43 @@ export function StudioApp() {
     setSelection((s) => ({ ...s, instrumentId: id, ...instrumentDefaults(id) }));
   }, []);
 
+  // ── Pattern editing ──
+  const toggleStep = useCallback((index: number) => {
+    setSelection((s) => {
+      if (s.pattern.kind !== "melodic") return s;
+      const hits = s.pattern.hits.map((on, i) => (i === index ? !on : on));
+      return { ...s, pattern: { ...s.pattern, hits } };
+    });
+  }, []);
+  const toggleDrum = useCallback((voice: DrumVoice, index: number) => {
+    setSelection((s) => {
+      if (s.pattern.kind !== "drums") return s;
+      const row = s.pattern.rows[voice].map((on, i) => (i === index ? !on : on));
+      return { ...s, pattern: { ...s.pattern, rows: { ...s.pattern.rows, [voice]: row } } };
+    });
+  }, []);
+  const setArticulation = useCallback((a: Articulation) => {
+    setSelection((s) =>
+      s.pattern.kind === "melodic"
+        ? { ...s, pattern: { ...s.pattern, articulation: a } }
+        : s,
+    );
+  }, []);
+  const applyPreset = useCallback((presetId: string) => {
+    setSelection((s) => {
+      const family = getInstrument(s.instrumentId).family;
+      const preset = presetsFor(family).find((p) => p.id === presetId);
+      return preset ? { ...s, pattern: clonePattern(preset.pattern) } : s;
+    });
+  }, []);
+  const clearPattern = useCallback(() => {
+    setSelection((s) => ({ ...s, pattern: emptyPatternLike(s.pattern) }));
+  }, []);
+
   // ── Progression editing ──
   const setStep = useCallback(
     (patch: Partial<ChordStep>) => {
-      setProgression((p) =>
-        p.map((s, i) => (i === editIndex ? { ...s, ...patch } : s)),
-      );
+      setProgression((p) => p.map((s, i) => (i === editIndex ? { ...s, ...patch } : s)));
     },
     [editIndex],
   );
@@ -151,7 +188,14 @@ export function StudioApp() {
     const id = `t${nextId.current++}`;
     setTracks((ts) => [
       ...ts,
-      { id, ...selection, volume: 0.85, muted: false, solo: false },
+      {
+        id,
+        ...selection,
+        pattern: clonePattern(selection.pattern),
+        volume: 0.85,
+        muted: false,
+        solo: false,
+      },
     ]);
   }, [selection]);
   const updateTrack = useCallback((id: string, patch: Partial<Track>) => {
@@ -168,9 +212,7 @@ export function StudioApp() {
           <InstrumentPicker value={selection.instrumentId} onSelect={selectInstrument} />
 
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-text-muted">
-              Progression
-            </h2>
+            <h2 className="mb-2 text-sm font-semibold text-text-muted">Progression</h2>
             <ProgressionBar
               progression={progression}
               editIndex={editIndex}
@@ -186,10 +228,14 @@ export function StudioApp() {
             onRoot={(root) => setStep({ root })}
             onQuality={(quality) => setStep({ quality })}
           />
-          <StylePicker
+          <StepSequencer
             instrumentId={selection.instrumentId}
-            styleId={selection.styleId}
-            onSelect={(styleId) => setSelection((s) => ({ ...s, styleId }))}
+            pattern={selection.pattern}
+            onToggleStep={toggleStep}
+            onToggleDrum={toggleDrum}
+            onArticulation={setArticulation}
+            onPreset={applyPreset}
+            onClear={clearPattern}
           />
           <FeelControls
             swing={swing}

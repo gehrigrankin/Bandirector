@@ -1,4 +1,5 @@
 import type { InstrumentId } from "@/lib/audio/instruments";
+import type { Pattern } from "@/lib/audio/patterns";
 
 /** One step in the loop's chord progression (one bar). */
 export interface ChordStep {
@@ -7,10 +8,11 @@ export interface ChordStep {
 }
 
 /** The instrument part being auditioned in the LoopPad. The chord changes are
- *  global (the progression), so a part is just an instrument + style + octave. */
+ *  global (the progression), so a part is an instrument + a programmable step
+ *  pattern + octave. */
 export interface Selection {
   instrumentId: InstrumentId;
-  styleId: string;
+  pattern: Pattern;
   octave: number;
 }
 

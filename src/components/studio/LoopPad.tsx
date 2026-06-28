@@ -4,7 +4,7 @@ import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { chordSymbol } from "@/lib/music/chord";
 import { getInstrument } from "@/lib/audio/instruments";
-import { getStyle } from "@/lib/audio/patterns";
+import { patternSummary } from "@/lib/audio/patterns";
 import type { ChordStep, Selection } from "@/components/studio/types";
 
 interface Props {
@@ -16,7 +16,6 @@ interface Props {
 
 export function LoopPad({ selection, progression, isPlaying, onLock }: Props) {
   const def = getInstrument(selection.instrumentId);
-  const style = getStyle(def.family, selection.styleId);
   const chords = progression.map((s) => chordSymbol(s.root, s.quality)).join(" · ");
   return (
     <section className="rounded-2xl border border-border bg-bg-raised p-4">
@@ -24,7 +23,7 @@ export function LoopPad({ selection, progression, isPlaying, onLock }: Props) {
         <div className="min-w-0">
           <div className="truncate text-2xl font-bold tracking-tight">{chords}</div>
           <div className="mt-1 truncate text-sm text-text-muted">
-            {def.label} · {style.label} ·{" "}
+            {def.label} · {patternSummary(selection.pattern)} ·{" "}
             {progression.length === 1 ? "1 bar" : `${progression.length} bars`}
           </div>
         </div>
@@ -35,7 +34,7 @@ export function LoopPad({ selection, progression, isPlaying, onLock }: Props) {
       </div>
       <p className="mt-3 text-xs text-text-dim">
         {isPlaying
-          ? "Previewing live — edit the progression, style or instrument to hear it. Lock to layer this part over the changes."
+          ? "Previewing live — edit the progression, pattern or instrument to hear it. Lock to layer this part over the changes."
           : "Press Play to preview the loop, then Lock to stack this instrument over the progression."}
       </p>
     </section>

@@ -1,12 +1,16 @@
-// Style generators: given a chord (as MIDI notes) and the bar length, each
-// returns the note events for one bar. Strum / drum shapes reuse the feel
-// arrays from the jam app (src/lib/music/patterns.ts) so the two parts of
-// Bandirector share a musical vocabulary. A STYLES registry maps each
-// instrument family to its allowed styles.
+// The dynamic pattern system. A loop part is a programmable step pattern, not a
+// fixed preset:
+//   • Melodic instruments  → a single 16-step row of hits + an articulation
+//     (how the chord is voiced on each hit: strum / block / arp / root / octave).
+//   • Drums                → one 16-step row per voice (kick/snare/hat/…).
+// Presets just seed the grid; everything is then editable. renderPattern() turns
+// a pattern + the current chord into the bar's note events.
 
 import type { BarEvent } from "@/lib/audio/engine";
 import type { StyleFamily } from "@/lib/audio/instruments";
-import { STRUM_PATTERNS } from "@/lib/music/patterns";
+
+export const STEP_COUNT = 16; // sixteenth-note grid
+export const BEAT_STEPS = 4; // steps per beat (4/4)
 
 export interface PatternArgs {
   /** Chord tones as MIDI numbers, root position (root first). */
@@ -16,367 +20,252 @@ export interface PatternArgs {
   octave: number;
 }
 
-export type StyleGenerator = (args: PatternArgs) => BarEvent[];
+// ─── Articulation (how a melodic hit voices the chord) ───────────────────────
 
-export interface StyleDef {
-  id: string;
-  label: string;
-  generate: StyleGenerator;
-}
+export type Articulation = "strum" | "block" | "arp" | "root" | "octave";
 
-const STAGGER = 0.022; // seconds between strings in a strum (relaxed, human)
-
-function at(notes: number[], i: number): number {
-  return notes[((i % notes.length) + notes.length) % notes.length];
-}
-
-// ─── Strum / fingerstyle (guitars) ──────────────────────────────────────────
-
-function strumGenerator(
-  strokes: ReadonlyArray<"D" | "U" | "-">,
-): StyleGenerator {
-  return ({ chordNotes, barSeconds }) => {
-    const slot = barSeconds / 8;
-    const voicing = [chordNotes[0] - 12, ...chordNotes, chordNotes[0] + 12];
-    const events: BarEvent[] = [];
-    strokes.forEach((stroke, i) => {
-      if (stroke === "-") return;
-      const t = i * slot;
-      const order = stroke === "D" ? voicing : [...voicing].reverse();
-      const velocity = stroke === "D" ? 98 : 74;
-      order.forEach((note, n) => {
-        events.push({
-          note,
-          time: t + n * STAGGER,
-          duration: slot * 2,
-          velocity,
-        });
-      });
-    });
-    return events;
-  };
-}
-
-// Travis-style: thumb alternates root / fifth on the beats, fingers fill the
-// off-beats with the upper chord tones.
-const travisGenerator: StyleGenerator = ({ chordNotes, rootMidi, barSeconds }) => {
-  const slot = barSeconds / 8;
-  const fifth = rootMidi + 7;
-  const upper = chordNotes.slice(1);
-  const events: BarEvent[] = [];
-  for (let i = 0; i < 8; i++) {
-    const t = i * slot;
-    if (i % 2 === 0) {
-      const bass = i % 4 === 0 ? rootMidi : fifth;
-      events.push({ note: bass, time: t, duration: slot * 2, velocity: 90 });
-    } else {
-      events.push({
-        note: at(upper, (i - 1) / 2) + 12,
-        time: t,
-        duration: slot * 1.5,
-        velocity: 74,
-      });
-    }
-  }
-  return events;
-};
-
-const arpUpGenerator: StyleGenerator = ({ chordNotes, barSeconds }) => {
-  const slot = barSeconds / 8;
-  const ladder = [...chordNotes, ...chordNotes.map((n) => n + 12)];
-  return Array.from({ length: 8 }, (_, i) => ({
-    note: at(ladder, i),
-    time: i * slot,
-    duration: slot * 1.4,
-    velocity: 78,
-  }));
-};
-
-// p-i-m-a: thumb on the root, then the top three voices, repeating.
-const pimaGenerator: StyleGenerator = ({ chordNotes, rootMidi, barSeconds }) => {
-  const slot = barSeconds / 8;
-  const top = [
-    rootMidi,
-    at(chordNotes, 1) + 12,
-    at(chordNotes, 2) + 12,
-    chordNotes[0] + 12,
-  ];
-  return Array.from({ length: 8 }, (_, i) => ({
-    note: at(top, i),
-    time: i * slot,
-    duration: slot * 1.6,
-    velocity: i % 4 === 0 ? 92 : 76,
-  }));
-};
-
-const pluckGenerator: StyleGenerator = ({ chordNotes, rootMidi, barSeconds }) => {
-  const half = barSeconds / 2;
-  const top = chordNotes[chordNotes.length - 1] + 12;
-  return [
-    { note: rootMidi, time: 0, duration: half, velocity: 86 },
-    { note: top, time: STAGGER, duration: half, velocity: 78 },
-    { note: rootMidi, time: half, duration: half, velocity: 80 },
-    { note: top, time: half + STAGGER, duration: half, velocity: 74 },
-  ];
-};
-
-// ─── Bass ────────────────────────────────────────────────────────────────────
-
-const bassRoot: StyleGenerator = ({ rootMidi, barSeconds }) => {
-  const q = barSeconds / 4;
-  return Array.from({ length: 4 }, (_, i) => ({
-    note: rootMidi,
-    time: i * q,
-    duration: q * 0.9,
-    velocity: i === 0 ? 104 : 92,
-  }));
-};
-
-const bassRootFifth: StyleGenerator = ({ rootMidi, barSeconds }) => {
-  const q = barSeconds / 4;
-  const fifth = rootMidi + 7;
-  return [rootMidi, fifth, rootMidi, fifth].map((note, i) => ({
-    note,
-    time: i * q,
-    duration: q * 0.9,
-    velocity: i % 2 === 0 ? 102 : 90,
-  }));
-};
-
-const bassWalking: StyleGenerator = ({ chordNotes, rootMidi, barSeconds }) => {
-  const q = barSeconds / 4;
-  const third = at(chordNotes, 1);
-  const fifth = rootMidi + 7;
-  const walk = [rootMidi, third, fifth, rootMidi + 12];
-  return walk.map((note, i) => ({
-    note,
-    time: i * q,
-    duration: q * 0.9,
-    velocity: i === 0 ? 102 : 88,
-  }));
-};
-
-const bassOctave: StyleGenerator = ({ rootMidi, barSeconds }) => {
-  const e = barSeconds / 8;
-  return Array.from({ length: 8 }, (_, i) => ({
-    note: i % 2 === 0 ? rootMidi : rootMidi + 12,
-    time: i * e,
-    duration: e * 0.9,
-    velocity: i % 2 === 0 ? 98 : 86,
-  }));
-};
-
-// ─── Keys (piano / EP / organ) ───────────────────────────────────────────────
-
-const keysBlock: StyleGenerator = ({ chordNotes, barSeconds }) =>
-  chordNotes.map((note) => ({
-    note,
-    time: 0,
-    duration: barSeconds * 0.98,
-    velocity: 88,
-  }));
-
-const keysArpeggio: StyleGenerator = ({ chordNotes, barSeconds }) => {
-  const e = barSeconds / 8;
-  const ladder = [...chordNotes, ...chordNotes.map((n) => n + 12)];
-  return Array.from({ length: 8 }, (_, i) => ({
-    note: at(ladder, i),
-    time: i * e,
-    duration: e * 1.4,
-    velocity: 80,
-  }));
-};
-
-// Alberti / broken chord: low–high–mid–high.
-const keysBroken: StyleGenerator = ({ chordNotes, barSeconds }) => {
-  const e = barSeconds / 8;
-  const order = [0, 2, 1, 2];
-  return Array.from({ length: 8 }, (_, i) => ({
-    note: at(chordNotes, order[i % order.length]),
-    time: i * e,
-    duration: e * 1.2,
-    velocity: i % 4 === 0 ? 86 : 74,
-  }));
-};
-
-const keysSustained: StyleGenerator = ({ chordNotes, barSeconds }) =>
-  chordNotes.map((note) => ({
-    note,
-    time: 0,
-    duration: barSeconds,
-    velocity: 70,
-  }));
-
-// ─── Pads / strings / winds (sustaining voices) ──────────────────────────────
-
-const sustainHold: StyleGenerator = ({ chordNotes, barSeconds }) =>
-  chordNotes.map((note) => ({
-    note,
-    time: 0,
-    duration: barSeconds,
-    velocity: 72,
-  }));
-
-const sustainSwell: StyleGenerator = ({ chordNotes, barSeconds }) =>
-  chordNotes.map((note, i) => ({
-    note,
-    time: 0.02 * i,
-    duration: barSeconds,
-    velocity: 58,
-  }));
-
-const sustainStabs: StyleGenerator = ({ chordNotes, barSeconds }) => {
-  const half = barSeconds / 2;
-  const events: BarEvent[] = [];
-  for (const start of [0, half]) {
-    for (const note of chordNotes) {
-      events.push({ note, time: start, duration: half * 0.4, velocity: 88 });
-    }
-  }
-  return events;
-};
-
-const sustainLine: StyleGenerator = ({ chordNotes, barSeconds }) => {
-  const q = barSeconds / 4;
-  const ladder = [...chordNotes, chordNotes[0] + 12];
-  return Array.from({ length: 4 }, (_, i) => ({
-    note: at(ladder, i),
-    time: i * q,
-    duration: q * 1.1,
-    velocity: 76,
-  }));
-};
+export const ARTICULATIONS: { id: Articulation; label: string }[] = [
+  { id: "strum", label: "Strum" },
+  { id: "block", label: "Block" },
+  { id: "arp", label: "Arp" },
+  { id: "root", label: "Root" },
+  { id: "octave", label: "Octave" },
+];
 
 // ─── Drums ───────────────────────────────────────────────────────────────────
 
-type DrumGrid = ReadonlyArray<ReadonlyArray<string>>; // 8 eighth-note slots
+export type DrumVoice = "kick" | "snare" | "hihat" | "openhat" | "clap";
 
-function drumGenerator(grid: DrumGrid): StyleGenerator {
-  return ({ barSeconds }) => {
-    const e = barSeconds / 8;
-    const events: BarEvent[] = [];
-    grid.forEach((hits, i) => {
-      for (const drum of hits) {
-        const velocity = drum === "kick" || drum === "snare" ? 110 : 78;
-        events.push({ note: drum, time: i * e, duration: e, velocity });
-      }
-    });
-    return events;
-  };
-}
+export const DRUM_VOICES: { id: DrumVoice; label: string }[] = [
+  { id: "kick", label: "Kick" },
+  { id: "snare", label: "Snare" },
+  { id: "hihat", label: "Hat" },
+  { id: "openhat", label: "Open" },
+  { id: "clap", label: "Clap" },
+];
 
-const DRUM_GRIDS: Record<string, DrumGrid> = {
-  rock: [
-    ["kick", "hihat"],
-    ["hihat"],
-    ["snare", "hihat"],
-    ["hihat"],
-    ["kick", "hihat"],
-    ["hihat"],
-    ["snare", "hihat"],
-    ["hihat"],
-  ],
-  pop: [
-    ["kick", "hihat"],
-    ["hihat"],
-    ["snare", "hihat"],
-    ["kick", "hihat"],
-    ["hihat"],
-    ["hihat"],
-    ["snare", "hihat"],
-    ["hihat"],
-  ],
-  funk: [
-    ["kick", "hihat"],
-    ["hihat"],
-    ["snare", "hihat"],
-    ["kick", "hihat"],
-    ["kick", "hihat"],
-    ["hihat"],
-    ["snare", "hihat"],
-    ["hihat"],
-  ],
-  folk: [
-    ["kick", "hihat"],
-    [],
-    ["snare", "hihat"],
-    [],
-    ["kick", "hihat"],
-    [],
-    ["snare", "hihat"],
-    [],
-  ],
-  ballad: [
-    ["kick"],
-    [],
-    ["hihat"],
-    [],
-    ["snare"],
-    [],
-    ["hihat"],
-    [],
-  ],
-  latin: [
-    ["kick", "hihat"],
-    ["hihat"],
-    ["hihat"],
-    ["kick", "snare", "hihat"],
-    ["hihat"],
-    ["kick", "hihat"],
-    ["snare", "hihat"],
-    ["hihat"],
-  ],
+const DRUM_VOICE_IDS = DRUM_VOICES.map((v) => v.id);
+
+const DRUM_VELOCITY: Record<DrumVoice, number> = {
+  kick: 112,
+  snare: 108,
+  hihat: 80,
+  openhat: 78,
+  clap: 104,
 };
 
-// ─── Registry ────────────────────────────────────────────────────────────────
+// ─── Pattern shapes ──────────────────────────────────────────────────────────
 
-export const STYLES: Record<StyleFamily, StyleDef[]> = {
+export interface MelodicPattern {
+  kind: "melodic";
+  hits: boolean[]; // length STEP_COUNT
+  articulation: Articulation;
+}
+
+export interface DrumPattern {
+  kind: "drums";
+  rows: Record<DrumVoice, boolean[]>; // each length STEP_COUNT
+}
+
+export type Pattern = MelodicPattern | DrumPattern;
+
+function emptyRow(): boolean[] {
+  return Array.from({ length: STEP_COUNT }, () => false);
+}
+
+function row(...steps: number[]): boolean[] {
+  const r = emptyRow();
+  for (const s of steps) if (s >= 0 && s < STEP_COUNT) r[s] = true;
+  return r;
+}
+
+function melodic(articulation: Articulation, ...steps: number[]): MelodicPattern {
+  return { kind: "melodic", articulation, hits: row(...steps) };
+}
+
+function drumKit(spec: Partial<Record<DrumVoice, number[]>>): DrumPattern {
+  const rows = {} as Record<DrumVoice, boolean[]>;
+  for (const v of DRUM_VOICE_IDS) rows[v] = row(...(spec[v] ?? []));
+  return { kind: "drums", rows };
+}
+
+/** An empty pattern of the same kind (Clear button), keeping articulation. */
+export function emptyPatternLike(p: Pattern): Pattern {
+  return p.kind === "drums"
+    ? {
+        kind: "drums",
+        rows: Object.fromEntries(
+          DRUM_VOICE_IDS.map((v) => [v, emptyRow()]),
+        ) as Record<DrumVoice, boolean[]>,
+      }
+    : { kind: "melodic", articulation: p.articulation, hits: emptyRow() };
+}
+
+/** Deep copy so editing a track's pattern never mutates a shared preset. */
+export function clonePattern(p: Pattern): Pattern {
+  return p.kind === "drums"
+    ? {
+        kind: "drums",
+        rows: Object.fromEntries(
+          DRUM_VOICE_IDS.map((v) => [v, [...p.rows[v]]]),
+        ) as Record<DrumVoice, boolean[]>,
+      }
+    : { kind: "melodic", articulation: p.articulation, hits: [...p.hits] };
+}
+
+// ─── Rendering ───────────────────────────────────────────────────────────────
+
+const STRUM_SPREAD = 0.022; // seconds between strings in a strummed hit
+
+function renderMelodic(p: MelodicPattern, a: PatternArgs): BarEvent[] {
+  const { chordNotes, rootMidi, barSeconds } = a;
+  const stepDur = barSeconds / STEP_COUNT;
+  const dur = stepDur * 1.8;
+  const ladder = [...chordNotes, ...chordNotes.map((n) => n + 12)];
+  const events: BarEvent[] = [];
+  let arp = 0;
+  p.hits.forEach((on, i) => {
+    if (!on) return;
+    const t = i * stepDur;
+    switch (p.articulation) {
+      case "block":
+        for (const n of chordNotes)
+          events.push({ note: n, time: t, duration: dur, velocity: 88 });
+        break;
+      case "strum": {
+        const voicing = [chordNotes[0] - 12, ...chordNotes];
+        voicing.forEach((n, k) =>
+          events.push({ note: n, time: t + k * STRUM_SPREAD, duration: dur, velocity: 92 }),
+        );
+        break;
+      }
+      case "arp":
+        events.push({ note: ladder[arp % ladder.length], time: t, duration: dur, velocity: 86 });
+        arp++;
+        break;
+      case "root":
+        events.push({ note: rootMidi, time: t, duration: dur, velocity: 98 });
+        break;
+      case "octave":
+        events.push({ note: rootMidi, time: t, duration: dur, velocity: 98 });
+        events.push({ note: rootMidi + 12, time: t + 0.008, duration: dur, velocity: 84 });
+        break;
+    }
+  });
+  return events;
+}
+
+function renderDrums(p: DrumPattern, a: PatternArgs): BarEvent[] {
+  const stepDur = a.barSeconds / STEP_COUNT;
+  const events: BarEvent[] = [];
+  for (const voice of DRUM_VOICE_IDS) {
+    p.rows[voice].forEach((on, i) => {
+      if (on)
+        events.push({
+          note: voice,
+          time: i * stepDur,
+          duration: stepDur,
+          velocity: DRUM_VELOCITY[voice],
+        });
+    });
+  }
+  return events;
+}
+
+export function renderPattern(p: Pattern, a: PatternArgs): BarEvent[] {
+  return p.kind === "drums" ? renderDrums(p, a) : renderMelodic(p, a);
+}
+
+// ─── Presets (starting points, fully editable after) ─────────────────────────
+
+export interface Preset {
+  id: string;
+  label: string;
+  pattern: Pattern;
+}
+
+const EIGHTHS = [0, 2, 4, 6, 8, 10, 12, 14];
+const QUARTERS = [0, 4, 8, 12];
+
+const PRESETS: Record<StyleFamily, Preset[]> = {
   strum: [
-    { id: "rhythm1", label: "Rhythm 1", generate: strumGenerator(STRUM_PATTERNS.folk.strokes) },
-    { id: "rhythm2", label: "Rhythm 2", generate: strumGenerator(STRUM_PATTERNS.pop.strokes) },
-    { id: "rhythm3", label: "Rhythm 3", generate: strumGenerator(STRUM_PATTERNS.rock.strokes) },
-    { id: "finger1", label: "Fingerstyle 1", generate: travisGenerator },
-    { id: "finger2", label: "Fingerstyle 2", generate: arpUpGenerator },
-    { id: "finger3", label: "Fingerstyle 3", generate: pimaGenerator },
-    { id: "pluck", label: "Pluck", generate: pluckGenerator },
+    { id: "down8", label: "8th Strums", pattern: melodic("strum", ...EIGHTHS) },
+    { id: "pop", label: "Pop", pattern: melodic("strum", 0, 4, 6, 8, 12, 14) },
+    { id: "quarters", label: "Quarters", pattern: melodic("strum", ...QUARTERS) },
+    { id: "arp", label: "Arpeggio", pattern: melodic("arp", ...EIGHTHS) },
+    { id: "ballad", label: "Ballad", pattern: melodic("block", 0, 8) },
   ],
   bass: [
-    { id: "root", label: "Root", generate: bassRoot },
-    { id: "root5", label: "Root–Fifth", generate: bassRootFifth },
-    { id: "walking", label: "Walking", generate: bassWalking },
-    { id: "octave", label: "Octave", generate: bassOctave },
+    { id: "root4", label: "Roots", pattern: melodic("root", ...QUARTERS) },
+    { id: "root8", label: "Driving 8ths", pattern: melodic("root", ...EIGHTHS) },
+    { id: "oct", label: "Octaves", pattern: melodic("octave", ...QUARTERS) },
+    { id: "sync", label: "Syncopated", pattern: melodic("root", 0, 6, 8, 11, 14) },
   ],
   keys: [
-    { id: "block", label: "Block", generate: keysBlock },
-    { id: "arpeggio", label: "Arpeggio", generate: keysArpeggio },
-    { id: "broken", label: "Broken", generate: keysBroken },
-    { id: "sustained", label: "Sustained", generate: keysSustained },
+    { id: "block4", label: "Block", pattern: melodic("block", ...QUARTERS) },
+    { id: "arp", label: "Arpeggio", pattern: melodic("arp", ...EIGHTHS) },
+    { id: "offbeat", label: "Offbeats", pattern: melodic("block", 2, 6, 10, 14) },
+    { id: "pad", label: "Sustained", pattern: melodic("block", 0) },
   ],
   sustain: [
-    { id: "sustained", label: "Sustained", generate: sustainHold },
-    { id: "swell", label: "Swell", generate: sustainSwell },
-    { id: "stabs", label: "Stabs", generate: sustainStabs },
-    { id: "line", label: "Line", generate: sustainLine },
+    { id: "hold", label: "Hold", pattern: melodic("block", 0) },
+    { id: "stabs", label: "Stabs", pattern: melodic("block", 0, 8) },
+    { id: "arp", label: "Arpeggio", pattern: melodic("arp", ...QUARTERS) },
+    { id: "swell", label: "Swell", pattern: melodic("block", 0, 8) },
   ],
   drums: [
-    { id: "rock", label: "Rock", generate: drumGenerator(DRUM_GRIDS.rock) },
-    { id: "pop", label: "Pop", generate: drumGenerator(DRUM_GRIDS.pop) },
-    { id: "funk", label: "Funk", generate: drumGenerator(DRUM_GRIDS.funk) },
-    { id: "folk", label: "Folk", generate: drumGenerator(DRUM_GRIDS.folk) },
-    { id: "ballad", label: "Ballad", generate: drumGenerator(DRUM_GRIDS.ballad) },
-    { id: "latin", label: "Latin", generate: drumGenerator(DRUM_GRIDS.latin) },
+    {
+      id: "rock",
+      label: "Rock",
+      pattern: drumKit({ kick: [0, 8], snare: [4, 12], hihat: EIGHTHS }),
+    },
+    {
+      id: "pop",
+      label: "Pop",
+      pattern: drumKit({ kick: [0, 6, 8], snare: [4, 12], hihat: EIGHTHS }),
+    },
+    {
+      id: "funk",
+      label: "Funk",
+      pattern: drumKit({ kick: [0, 3, 6, 10], snare: [4, 12], hihat: EIGHTHS, openhat: [14] }),
+    },
+    {
+      id: "halftime",
+      label: "Half-time",
+      pattern: drumKit({ kick: [0, 10], snare: [8], hihat: EIGHTHS }),
+    },
+    {
+      id: "fourfloor",
+      label: "4-Floor",
+      pattern: drumKit({ kick: QUARTERS, snare: [4, 12], openhat: [2, 6, 10, 14] }),
+    },
+    {
+      id: "latin",
+      label: "Latin",
+      pattern: drumKit({ kick: [0, 6, 8], snare: [3, 7, 10], hihat: EIGHTHS }),
+    },
   ],
 };
 
-export function getStyles(family: StyleFamily): StyleDef[] {
-  return STYLES[family];
+export function presetsFor(family: StyleFamily): Preset[] {
+  return PRESETS[family];
 }
 
-export function getStyle(family: StyleFamily, id: string): StyleDef {
-  const list = STYLES[family];
-  return list.find((s) => s.id === id) ?? list[0];
+export function defaultPattern(family: StyleFamily): Pattern {
+  return clonePattern(PRESETS[family][0].pattern);
 }
 
-export function defaultStyleId(family: StyleFamily): string {
-  return STYLES[family][0].id;
+/** Short human description for the LoopPad / track rack. */
+export function patternSummary(p: Pattern): string {
+  if (p.kind === "drums") {
+    const hits = DRUM_VOICE_IDS.reduce(
+      (n, v) => n + p.rows[v].filter(Boolean).length,
+      0,
+    );
+    const voices = DRUM_VOICE_IDS.filter((v) => p.rows[v].some(Boolean)).length;
+    return `${hits} hits · ${voices} voices`;
+  }
+  const count = p.hits.filter(Boolean).length;
+  const art = ARTICULATIONS.find((a) => a.id === p.articulation)?.label ?? "";
+  return `${art} · ${count} hits`;
 }

@@ -15,11 +15,14 @@ lyrics). This is the original Bandirector flow, now one part of the app.
 
 A chord + loop workstation for writing songs:
 
-- A **chord grid** — 12 roots × quality variations (A, Am, Am7, Asus2, …).
-- Per-instrument **playing styles** — rhythm 1/2/3, fingerstyle 1–3, pluck for
-  guitars; root / root-fifth / walking / octave for bass; block / arpeggio /
-  broken / sustained for keys; sustained / swell / stabs / line for pads,
-  strings and winds; rock / pop / funk / folk / ballad / latin for drums.
+- A **chord progression** — build an unlimited sequence (C · Am · F · G); the
+  changes are global and every layer follows them in sync.
+- A **step sequencer** — program a 16-step pattern per part. Melodic
+  instruments toggle which steps fire and pick an articulation (strum / block /
+  arpeggio / root / octave); drums get a row per voice (kick/snare/hat/…).
+  Presets seed the grid, then everything is editable.
+- **Groove + feel** — swing and humanize (micro-timing + velocity) so loops
+  breathe instead of sounding quantized.
 - A **loop player** that previews the current selection with real instrument
   samples (smplr soundfonts + drum machine).
 - **Lock-and-layer** — lock a loop and it joins a multi-track rack; every locked

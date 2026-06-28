@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getInstrument } from "@/lib/audio/instruments";
-import { getStyle } from "@/lib/audio/patterns";
+import { patternSummary } from "@/lib/audio/patterns";
 import type { Track } from "@/components/studio/types";
 
 interface Props {
@@ -16,7 +16,6 @@ interface Props {
 
 export function TrackRow({ track, onMute, onSolo, onVolume, onRemove }: Props) {
   const def = getInstrument(track.instrumentId);
-  const style = getStyle(def.family, track.styleId);
 
   return (
     <div className="rounded-xl border border-border bg-bg-raised p-3">
@@ -24,7 +23,7 @@ export function TrackRow({ track, onMute, onSolo, onVolume, onRemove }: Props) {
         <div className="min-w-0">
           <div className="truncate font-semibold">{def.label}</div>
           <div className="truncate text-xs text-text-muted">
-            {style.label}
+            {patternSummary(track.pattern)}
             {def.isDrums ? "" : " · follows progression"}
           </div>
         </div>
