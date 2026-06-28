@@ -14,14 +14,20 @@ import {
   type DrumVoice,
   type Pattern,
 } from "@/lib/audio/patterns";
-import { chordToMidi, type Mode } from "@/lib/music/chord";
+import {
+  chordToMidi,
+  progressionFromDegrees,
+  type Mode,
+} from "@/lib/music/chord";
 import type { ChordStep, Selection, Track } from "@/components/studio/types";
 import { InstrumentPicker } from "@/components/studio/InstrumentPicker";
 import { KeyBar } from "@/components/studio/KeyBar";
 import { ProgressionBar } from "@/components/studio/ProgressionBar";
+import { Suggestions } from "@/components/studio/Suggestions";
 import { DiatonicChords } from "@/components/studio/DiatonicChords";
 import { ChordGrid } from "@/components/studio/ChordGrid";
 import { StepSequencer } from "@/components/studio/StepSequencer";
+import { Slider, lengthLabel, reverbLabel } from "@/components/studio/Slider";
 import { FeelControls } from "@/components/studio/FeelControls";
 import { LoopPad } from "@/components/studio/LoopPad";
 import { TrackRack } from "@/components/studio/TrackRack";
@@ -40,6 +46,8 @@ function buildScheduled(t: Track, progression: ChordStep[]): ScheduledTrack {
     volume: t.volume,
     muted: t.muted,
     solo: t.solo,
+    noteLength: t.noteLength,
+    reverb: t.reverb,
     getBarEvents: (barSeconds, barIndex) => {
       const step = progression[barIndex % progression.length];
       const chordNotes = def.isDrums
@@ -57,6 +65,9 @@ function instrumentDefaults(id: InstrumentId): { pattern: Pattern; octave: numbe
   return { pattern: defaultPattern(def.family), octave: def.octave };
 }
 
+const DEFAULT_NOTE_LENGTH = 1;
+const DEFAULT_REVERB = 0.2;
+
 export function StudioApp() {
   const engine = useMemo(() => getEngine(), []);
 
@@ -64,8 +75,6 @@ export function StudioApp() {
   const [masterVolume, setMasterVolume] = useState(0.9);
   const [swing, setSwing] = useState(0);
   const [humanize, setHumanize] = useState(0.5);
-  const [noteLength, setNoteLength] = useState(1);
-  const [reverb, setReverb] = useState(0.2);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playStep, setPlayStep] = useState<number | null>(null);
 
@@ -83,6 +92,8 @@ export function StudioApp() {
   const [selection, setSelection] = useState<Selection>(() => ({
     instrumentId: "acoustic_guitar",
     ...instrumentDefaults("acoustic_guitar"),
+    noteLength: DEFAULT_NOTE_LENGTH,
+    reverb: DEFAULT_REVERB,
   }));
   const [tracks, setTracks] = useState<Track[]>([]);
   const nextId = useRef(1);
@@ -116,12 +127,6 @@ export function StudioApp() {
   useEffect(() => {
     engine.setHumanize(humanize);
   }, [engine, humanize]);
-  useEffect(() => {
-    engine.setNoteLength(noteLength);
-  }, [engine, noteLength]);
-  useEffect(() => {
-    engine.setReverb(reverb);
-  }, [engine, reverb]);
   useEffect(() => () => engine.stop(), [engine]);
 
   // Drive the step playhead off the audio clock (only re-render on step change).
@@ -153,11 +158,9 @@ export function StudioApp() {
     engine.setMasterVolume(masterVolume);
     engine.setSwing(swing);
     engine.setHumanize(humanize);
-    engine.setNoteLength(noteLength);
-    engine.setReverb(reverb);
     engine.start(() => scheduledRef.current);
     setIsPlaying(true);
-  }, [engine, bpm, masterVolume, swing, humanize, noteLength, reverb]);
+  }, [engine, bpm, masterVolume, swing, humanize]);
 
   const handleStop = useCallback(() => {
     engine.stop();
@@ -201,6 +204,14 @@ export function StudioApp() {
     setSelection((s) => ({ ...s, pattern: emptyPatternLike(s.pattern) }));
   }, []);
 
+  // ── Current part's sound (sustain + reverb) ──
+  const setSelNoteLength = useCallback((v: number) => {
+    setSelection((s) => ({ ...s, noteLength: v }));
+  }, []);
+  const setSelReverb = useCallback((v: number) => {
+    setSelection((s) => ({ ...s, reverb: v }));
+  }, []);
+
   // ── Progression editing ──
   const setStep = useCallback(
     (patch: Partial<ChordStep>) => {
@@ -224,6 +235,17 @@ export function StudioApp() {
       return next;
     });
   }, []);
+  const applyTemplate = useCallback(
+    (degrees: number[]) => {
+      const chords = progressionFromDegrees(tonic, mode, degrees).map((c) => ({
+        root: c.root,
+        quality: c.quality,
+      }));
+      setProgression(chords);
+      setEditIndex(0);
+    },
+    [tonic, mode],
+  );
 
   // ── Layers ──
   const lock = useCallback(() => {
@@ -264,6 +286,9 @@ export function StudioApp() {
               onAdd={addStep}
               onRemove={removeStep}
             />
+            <div className="mt-2">
+              <Suggestions onApply={applyTemplate} />
+            </div>
           </section>
 
           <DiatonicChords
@@ -302,15 +327,37 @@ export function StudioApp() {
             onPreset={applyPreset}
             onClear={clearPattern}
           />
+
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-text-muted">Sound</h2>
+            <div className="grid gap-x-4 gap-y-1 rounded-2xl border border-border bg-bg-raised p-4 sm:grid-cols-2">
+              <Slider
+                label="Note Length"
+                value={selection.noteLength}
+                display={lengthLabel(selection.noteLength)}
+                min={0.3}
+                max={2}
+                onChange={setSelNoteLength}
+              />
+              <Slider
+                label="Reverb"
+                value={selection.reverb}
+                display={reverbLabel(selection.reverb)}
+                min={0}
+                max={1}
+                onChange={setSelReverb}
+              />
+            </div>
+            <p className="mt-1 text-xs text-text-dim">
+              Applies to this part — each locked layer keeps its own.
+            </p>
+          </section>
+
           <FeelControls
             swing={swing}
             humanize={humanize}
-            noteLength={noteLength}
-            reverb={reverb}
             onSwing={setSwing}
             onHumanize={setHumanize}
-            onNoteLength={setNoteLength}
-            onReverb={setReverb}
           />
           <LoopPad
             selection={selection}
@@ -323,6 +370,8 @@ export function StudioApp() {
             onMute={(id, muted) => updateTrack(id, { muted })}
             onSolo={(id, solo) => updateTrack(id, { solo })}
             onVolume={(id, volume) => updateTrack(id, { volume })}
+            onNoteLength={(id, noteLength) => updateTrack(id, { noteLength })}
+            onReverb={(id, reverb) => updateTrack(id, { reverb })}
             onRemove={removeTrack}
           />
         </div>

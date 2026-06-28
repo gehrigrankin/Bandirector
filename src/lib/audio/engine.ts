@@ -35,6 +35,8 @@ export interface ScheduledTrack {
   volume: number; // 0..1
   muted: boolean;
   solo: boolean;
+  noteLength: number; // sustain multiplier (0.3 short … 2 long)
+  reverb: number; // 0 dry … 1 wet
   getBarEvents: (barSeconds: number, barIndex: number) => BarEvent[];
 }
 
@@ -43,6 +45,7 @@ type SmplrInstrument = ReturnType<typeof Soundfont> | ReturnType<typeof DrumMach
 interface Handle {
   instrumentId: string;
   gain: GainNode;
+  send: GainNode; // reverb send
   instrument: SmplrInstrument;
   isDrums: boolean;
   loaded: boolean;
@@ -94,8 +97,7 @@ class Engine {
   masterVolume = 0.9;
   swing = 0; // 0 = straight, ~0.6 = heavy shuffle
   humanize = 0.5; // 0 = robotic/quantized, 1 = loose
-  noteLength = 1; // multiplies note durations (sustain): 0.3 short … 2 long
-  reverb = 0.2; // 0 = dry … 1 = wet
+  // Note length (sustain) and reverb are per-track (see ScheduledTrack).
 
   get running(): boolean {
     return this.timer !== null;
@@ -112,14 +114,13 @@ class Engine {
       this.master.gain.value = this.masterVolume;
       this.master.connect(this.ctx.destination);
 
-      // Reverb send: master -> convolver -> wet gain -> destination (parallel
-      // to the dry master path). The impulse response is generated, so there's
-      // no asset to fetch.
+      // Shared reverb return: per-track sends feed the convolver, whose wet
+      // output mixes back to the destination. The impulse response is generated,
+      // so there's no asset to fetch.
       this.convolver = this.ctx.createConvolver();
       this.convolver.buffer = this.makeImpulse(this.ctx, 2.4, 2.6);
       this.reverbWet = this.ctx.createGain();
-      this.reverbWet.gain.value = this.reverb * 0.5;
-      this.master.connect(this.convolver);
+      this.reverbWet.gain.value = 0.9;
       this.convolver.connect(this.reverbWet);
       this.reverbWet.connect(this.ctx.destination);
     }
@@ -164,17 +165,6 @@ class Engine {
     this.humanize = Math.max(0, Math.min(1, v));
   }
 
-  setNoteLength(v: number) {
-    this.noteLength = Math.max(0.2, Math.min(2.5, v));
-  }
-
-  setReverb(v: number) {
-    this.reverb = Math.max(0, Math.min(1, v));
-    if (this.reverbWet && this.ctx) {
-      this.reverbWet.gain.setTargetAtTime(this.reverb * 0.5, this.ctx.currentTime, 0.02);
-    }
-  }
-
   /** Current transport position for the UI playhead, or null when idle.
    *  `phase` is 0..1 within the audible bar. */
   getPlayhead(): { barIndex: number; phase: number } | null {
@@ -204,6 +194,12 @@ class Engine {
     gain.gain.value = 0;
     gain.connect(this.master!);
 
+    // Per-track reverb send: gain -> send -> shared convolver.
+    const send = ctx.createGain();
+    send.gain.value = 0;
+    gain.connect(send);
+    send.connect(this.convolver!);
+
     let instrument: SmplrInstrument;
     if (def.isDrums) {
       instrument = DrumMachine(ctx, { destination: gain });
@@ -219,6 +215,7 @@ class Engine {
     const handle: Handle = {
       instrumentId: track.instrumentId,
       gain,
+      send,
       instrument,
       isDrums: !!def.isDrums,
       loaded: false,
@@ -249,6 +246,7 @@ class Engine {
     } catch {
       /* already disposed */
     }
+    handle.send.disconnect();
     handle.gain.disconnect();
   }
 
@@ -281,8 +279,9 @@ class Engine {
     for (const track of tracks) {
       const handle = this.ensureHandle(track); // starts loading even if silent
       const audible = anySolo ? track.solo : !track.muted;
-      const target = audible ? track.volume : 0;
-      handle.gain.gain.setTargetAtTime(target, this.context().currentTime, 0.01);
+      const now = this.context().currentTime;
+      handle.gain.gain.setTargetAtTime(audible ? track.volume : 0, now, 0.01);
+      handle.send.gain.setTargetAtTime(audible ? track.reverb * 0.5 : 0, now, 0.02);
       if (!audible || !handle.loaded) continue;
 
       const events = track.getBarEvents(barSeconds, barIndex);
@@ -316,14 +315,14 @@ class Engine {
         const duration =
           handle.isDrums || ev.duration == null
             ? ev.duration
-            : ev.duration * this.noteLength;
+            : ev.duration * track.noteLength;
 
         handle.instrument.start({
           note,
           time: barStart + offset,
           duration,
           velocity,
-          ampRelease: 0.12 + this.noteLength * 0.2,
+          ampRelease: 0.12 + track.noteLength * 0.2,
         });
       }
     }

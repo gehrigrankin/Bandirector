@@ -8,10 +8,20 @@ interface Props {
   onMute: (id: string, muted: boolean) => void;
   onSolo: (id: string, solo: boolean) => void;
   onVolume: (id: string, volume: number) => void;
+  onNoteLength: (id: string, v: number) => void;
+  onReverb: (id: string, v: number) => void;
   onRemove: (id: string) => void;
 }
 
-export function TrackRack({ tracks, onMute, onSolo, onVolume, onRemove }: Props) {
+export function TrackRack({
+  tracks,
+  onMute,
+  onSolo,
+  onVolume,
+  onNoteLength,
+  onReverb,
+  onRemove,
+}: Props) {
   return (
     <section>
       <h2 className="mb-2 text-sm font-semibold text-text-muted">
@@ -31,6 +41,8 @@ export function TrackRack({ tracks, onMute, onSolo, onVolume, onRemove }: Props)
               onMute={onMute}
               onSolo={onSolo}
               onVolume={onVolume}
+              onNoteLength={onNoteLength}
+              onReverb={onReverb}
               onRemove={onRemove}
             />
           ))}

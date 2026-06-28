@@ -204,3 +204,31 @@ export function isInKey(
     (c) => noteToSemitone(c.root) === r && c.quality === quality,
   );
 }
+
+// Common progressions as scale degrees (1 = tonic). Mapped onto the current
+// key's diatonic chords, so they adapt to major/minor automatically.
+export interface ProgressionTemplate {
+  id: string;
+  label: string;
+  degrees: number[];
+}
+
+export const PROGRESSION_TEMPLATES: ProgressionTemplate[] = [
+  { id: "pop", label: "I–V–vi–IV", degrees: [1, 5, 6, 4] },
+  { id: "classic", label: "I–IV–V", degrees: [1, 4, 5] },
+  { id: "fifties", label: "I–vi–IV–V", degrees: [1, 6, 4, 5] },
+  { id: "sad", label: "vi–IV–I–V", degrees: [6, 4, 1, 5] },
+  { id: "jazz", label: "ii–V–I", degrees: [2, 5, 1] },
+  { id: "canon", label: "I–V–vi–iii–IV", degrees: [1, 5, 6, 3, 4] },
+  { id: "blues", label: "12-Bar Blues", degrees: [1, 1, 1, 1, 4, 4, 1, 1, 5, 4, 1, 5] },
+];
+
+/** Turn a template's scale degrees into concrete chords for a key. */
+export function progressionFromDegrees(
+  tonic: string,
+  mode: Mode,
+  degrees: number[],
+): DiatonicChord[] {
+  const diatonic = diatonicChords(tonic, mode);
+  return degrees.map((d) => diatonic[(((d - 1) % 7) + 7) % 7]);
+}

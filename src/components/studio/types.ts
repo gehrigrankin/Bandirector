@@ -14,6 +14,8 @@ export interface Selection {
   instrumentId: InstrumentId;
   pattern: Pattern;
   octave: number;
+  noteLength: number; // sustain multiplier (0.3 short … 2 long)
+  reverb: number; // 0 dry … 1 wet
 }
 
 /** A locked layer in the track rack — an instrument part that follows the

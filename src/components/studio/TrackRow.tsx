@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getInstrument } from "@/lib/audio/instruments";
 import { patternSummary } from "@/lib/audio/patterns";
+import { Slider, lengthLabel, reverbLabel } from "@/components/studio/Slider";
 import type { Track } from "@/components/studio/types";
 
 interface Props {
@@ -11,10 +12,20 @@ interface Props {
   onMute: (id: string, muted: boolean) => void;
   onSolo: (id: string, solo: boolean) => void;
   onVolume: (id: string, volume: number) => void;
+  onNoteLength: (id: string, v: number) => void;
+  onReverb: (id: string, v: number) => void;
   onRemove: (id: string) => void;
 }
 
-export function TrackRow({ track, onMute, onSolo, onVolume, onRemove }: Props) {
+export function TrackRow({
+  track,
+  onMute,
+  onSolo,
+  onVolume,
+  onNoteLength,
+  onReverb,
+  onRemove,
+}: Props) {
   const def = getInstrument(track.instrumentId);
 
   return (
@@ -65,6 +76,24 @@ export function TrackRow({ track, onMute, onSolo, onVolume, onRemove }: Props) {
           aria-label="Track volume"
           onChange={(e) => onVolume(track.id, Number(e.target.value))}
           className="h-11 flex-1 accent-accent"
+        />
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-x-3">
+        <Slider
+          label="Length"
+          value={track.noteLength}
+          display={lengthLabel(track.noteLength)}
+          min={0.3}
+          max={2}
+          onChange={(v) => onNoteLength(track.id, v)}
+        />
+        <Slider
+          label="Reverb"
+          value={track.reverb}
+          display={reverbLabel(track.reverb)}
+          min={0}
+          max={1}
+          onChange={(v) => onReverb(track.id, v)}
         />
       </div>
     </div>
