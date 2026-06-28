@@ -26,14 +26,16 @@ export interface BarEvent {
 }
 
 /** What the React layer hands the scheduler each bar. `getBarEvents` is a
- *  closure over the track's current chord + style + octave. */
+ *  closure over the track's instrument + style; `barIndex` is the shared,
+ *  monotonically increasing bar counter so every layer lands on the same step
+ *  of the progression. */
 export interface ScheduledTrack {
   id: string;
   instrumentId: string;
   volume: number; // 0..1
   muted: boolean;
   solo: boolean;
-  getBarEvents: (barSeconds: number) => BarEvent[];
+  getBarEvents: (barSeconds: number, barIndex: number) => BarEvent[];
 }
 
 type SmplrInstrument = ReturnType<typeof Soundfont> | ReturnType<typeof DrumMachine>;
@@ -76,6 +78,7 @@ class Engine {
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBarTime = 0;
+  private barIndex = 0;
   private getTracks: (() => ScheduledTrack[]) | null = null;
 
   bpm = 100;
@@ -184,7 +187,7 @@ class Engine {
     }
   }
 
-  private scheduleBar(barStart: number) {
+  private scheduleBar(barStart: number, barIndex: number) {
     if (!this.getTracks) return;
     const tracks = this.getTracks();
     const ids = new Set(tracks.map((t) => t.id));
@@ -200,7 +203,7 @@ class Engine {
       handle.gain.gain.setTargetAtTime(target, this.context().currentTime, 0.01);
       if (!audible || !handle.loaded) continue;
 
-      const events = track.getBarEvents(barSeconds);
+      const events = track.getBarEvents(barSeconds, barIndex);
       for (const ev of events) {
         let note = ev.note;
         if (handle.isDrums) {
@@ -221,14 +224,16 @@ class Engine {
   private tick = () => {
     const ctx = this.context();
     while (this.nextBarTime < ctx.currentTime + SCHEDULE_AHEAD) {
-      this.scheduleBar(this.nextBarTime);
+      this.scheduleBar(this.nextBarTime, this.barIndex);
       this.nextBarTime += this.barSeconds();
+      this.barIndex += 1;
     }
   };
 
   start(getTracks: () => ScheduledTrack[]) {
     if (this.timer) return;
     this.getTracks = getTracks;
+    this.barIndex = 0;
     this.nextBarTime = this.context().currentTime + 0.12;
     this.tick();
     this.timer = setInterval(this.tick, LOOKAHEAD_MS);

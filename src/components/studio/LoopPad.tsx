@@ -5,26 +5,27 @@ import { Button } from "@/components/ui/Button";
 import { chordSymbol } from "@/lib/music/chord";
 import { getInstrument } from "@/lib/audio/instruments";
 import { getStyle } from "@/lib/audio/patterns";
-import type { Selection } from "@/components/studio/types";
+import type { ChordStep, Selection } from "@/components/studio/types";
 
 interface Props {
   selection: Selection;
+  progression: ChordStep[];
   isPlaying: boolean;
   onLock: () => void;
 }
 
-export function LoopPad({ selection, isPlaying, onLock }: Props) {
+export function LoopPad({ selection, progression, isPlaying, onLock }: Props) {
   const def = getInstrument(selection.instrumentId);
   const style = getStyle(def.family, selection.styleId);
+  const chords = progression.map((s) => chordSymbol(s.root, s.quality)).join(" · ");
   return (
     <section className="rounded-2xl border border-border bg-bg-raised p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-4xl font-bold tracking-tight">
-            {def.isDrums ? def.label : chordSymbol(selection.root, selection.quality)}
-          </div>
+          <div className="truncate text-2xl font-bold tracking-tight">{chords}</div>
           <div className="mt-1 truncate text-sm text-text-muted">
-            {def.label} · {style.label}
+            {def.label} · {style.label} ·{" "}
+            {progression.length === 1 ? "1 bar" : `${progression.length} bars`}
           </div>
         </div>
         <Button size="lg" className="shrink-0" onClick={onLock}>
@@ -34,8 +35,8 @@ export function LoopPad({ selection, isPlaying, onLock }: Props) {
       </div>
       <p className="mt-3 text-xs text-text-dim">
         {isPlaying
-          ? "Previewing live — change root, quality, style or instrument to hear it. Lock to layer it under the others."
-          : "Press Play to preview this loop, then Lock to stack it with more parts."}
+          ? "Previewing live — edit the progression, style or instrument to hear it. Lock to layer this part over the changes."
+          : "Press Play to preview the loop, then Lock to stack this instrument over the progression."}
       </p>
     </section>
   );

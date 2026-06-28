@@ -1,18 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  getEngine,
-  type ScheduledTrack,
-} from "@/lib/audio/engine";
+import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
 import { getInstrument, type InstrumentId } from "@/lib/audio/instruments";
-import {
-  defaultStyleId,
-  getStyle,
-} from "@/lib/audio/patterns";
+import { defaultStyleId, getStyle } from "@/lib/audio/patterns";
 import { chordToMidi } from "@/lib/music/chord";
-import type { Selection, Track } from "@/components/studio/types";
+import type { ChordStep, Selection, Track } from "@/components/studio/types";
 import { InstrumentPicker } from "@/components/studio/InstrumentPicker";
+import { ProgressionBar } from "@/components/studio/ProgressionBar";
 import { ChordGrid } from "@/components/studio/ChordGrid";
 import { StylePicker } from "@/components/studio/StylePicker";
 import { LoopPad } from "@/components/studio/LoopPad";
@@ -21,10 +16,10 @@ import { TransportBar } from "@/components/studio/TransportBar";
 
 const PREVIEW_VOLUME = 0.85;
 
-/** Turn a track / selection into the bar-event closure the scheduler runs. */
-function buildScheduled(
-  t: Track,
-): ScheduledTrack {
+/** Turn a track into the bar-event closure the scheduler runs. Every track
+ *  follows the shared progression: `barIndex` selects the current chord, so
+ *  all layers change together. */
+function buildScheduled(t: Track, progression: ChordStep[]): ScheduledTrack {
   const def = getInstrument(t.instrumentId);
   const style = getStyle(def.family, t.styleId);
   return {
@@ -33,10 +28,11 @@ function buildScheduled(
     volume: t.volume,
     muted: t.muted,
     solo: t.solo,
-    getBarEvents: (barSeconds) => {
+    getBarEvents: (barSeconds, barIndex) => {
+      const step = progression[barIndex % progression.length];
       const chordNotes = def.isDrums
         ? []
-        : chordToMidi(t.root, t.quality, t.octave);
+        : chordToMidi(step.root, step.quality, t.octave);
       const rootMidi = chordNotes[0] ?? 60;
       return style.generate({ chordNotes, rootMidi, barSeconds, octave: t.octave });
     },
@@ -56,27 +52,31 @@ export function StudioApp() {
   const [masterVolume, setMasterVolume] = useState(0.9);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // The loop's chord changes (one bar per step), shared by every layer.
+  const [progression, setProgression] = useState<ChordStep[]>([
+    { root: "C", quality: "maj" },
+  ]);
+  const [editIndex, setEditIndex] = useState(0);
+
   const [selection, setSelection] = useState<Selection>(() => ({
     instrumentId: "acoustic_guitar",
-    root: "C",
-    quality: "maj",
     ...instrumentDefaults("acoustic_guitar"),
   }));
   const [tracks, setTracks] = useState<Track[]>([]);
   const nextId = useRef(1);
 
+  const step = progression[Math.min(editIndex, progression.length - 1)];
+
   // Live snapshot the scheduler reads each bar: the transient preview of the
-  // current selection, followed by every locked loop.
+  // current selection, followed by every locked layer — all over the
+  // shared progression.
   const scheduled = useMemo<ScheduledTrack[]>(() => {
-    const preview = buildScheduled({
-      id: "preview",
-      ...selection,
-      volume: PREVIEW_VOLUME,
-      muted: false,
-      solo: false,
-    });
-    return [preview, ...tracks.map(buildScheduled)];
-  }, [selection, tracks]);
+    const preview = buildScheduled(
+      { id: "preview", ...selection, volume: PREVIEW_VOLUME, muted: false, solo: false },
+      progression,
+    );
+    return [preview, ...tracks.map((t) => buildScheduled(t, progression))];
+  }, [selection, tracks, progression]);
 
   const scheduledRef = useRef<ScheduledTrack[]>(scheduled);
   useEffect(() => {
@@ -109,6 +109,33 @@ export function StudioApp() {
     setSelection((s) => ({ ...s, instrumentId: id, ...instrumentDefaults(id) }));
   }, []);
 
+  // ── Progression editing ──
+  const setStep = useCallback(
+    (patch: Partial<ChordStep>) => {
+      setProgression((p) =>
+        p.map((s, i) => (i === editIndex ? { ...s, ...patch } : s)),
+      );
+    },
+    [editIndex],
+  );
+  const addStep = useCallback(() => {
+    setProgression((p) => {
+      const copy = p[Math.min(editIndex, p.length - 1)] ?? { root: "C", quality: "maj" };
+      const next = [...p, { ...copy }];
+      setEditIndex(next.length - 1);
+      return next;
+    });
+  }, [editIndex]);
+  const removeStep = useCallback((index: number) => {
+    setProgression((p) => {
+      if (p.length <= 1) return p;
+      const next = p.filter((_, i) => i !== index);
+      setEditIndex((cur) => Math.min(cur, next.length - 1));
+      return next;
+    });
+  }, []);
+
+  // ── Layers ──
   const lock = useCallback(() => {
     const id = `t${nextId.current++}`;
     setTracks((ts) => [
@@ -116,7 +143,6 @@ export function StudioApp() {
       { id, ...selection, volume: 0.85, muted: false, solo: false },
     ]);
   }, [selection]);
-
   const updateTrack = useCallback((id: string, patch: Partial<Track>) => {
     setTracks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   }, []);
@@ -125,22 +151,41 @@ export function StudioApp() {
   }, []);
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex-1 overflow-y-auto px-4 pb-44 pt-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4">
         <div className="mx-auto max-w-3xl space-y-6">
           <InstrumentPicker value={selection.instrumentId} onSelect={selectInstrument} />
+
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-text-muted">
+              Progression
+            </h2>
+            <ProgressionBar
+              progression={progression}
+              editIndex={editIndex}
+              onSelect={setEditIndex}
+              onAdd={addStep}
+              onRemove={removeStep}
+            />
+          </section>
+
           <ChordGrid
-            root={selection.root}
-            quality={selection.quality}
-            onRoot={(root) => setSelection((s) => ({ ...s, root }))}
-            onQuality={(quality) => setSelection((s) => ({ ...s, quality }))}
+            root={step.root}
+            quality={step.quality}
+            onRoot={(root) => setStep({ root })}
+            onQuality={(quality) => setStep({ quality })}
           />
           <StylePicker
             instrumentId={selection.instrumentId}
             styleId={selection.styleId}
             onSelect={(styleId) => setSelection((s) => ({ ...s, styleId }))}
           />
-          <LoopPad selection={selection} isPlaying={isPlaying} onLock={lock} />
+          <LoopPad
+            selection={selection}
+            progression={progression}
+            isPlaying={isPlaying}
+            onLock={lock}
+          />
           <TrackRack
             tracks={tracks}
             onMute={(id, muted) => updateTrack(id, { muted })}

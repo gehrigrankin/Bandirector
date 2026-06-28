@@ -2,7 +2,6 @@
 
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { chordSymbol } from "@/lib/music/chord";
 import { getInstrument } from "@/lib/audio/instruments";
 import { getStyle } from "@/lib/audio/patterns";
 import type { Track } from "@/components/studio/types";
@@ -18,16 +17,16 @@ interface Props {
 export function TrackRow({ track, onMute, onSolo, onVolume, onRemove }: Props) {
   const def = getInstrument(track.instrumentId);
   const style = getStyle(def.family, track.styleId);
-  const title = def.isDrums
-    ? def.label
-    : `${chordSymbol(track.root, track.quality)} · ${def.label}`;
 
   return (
     <div className="rounded-xl border border-border bg-bg-raised p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate font-semibold">{title}</div>
-          <div className="truncate text-xs text-text-muted">{style.label}</div>
+          <div className="truncate font-semibold">{def.label}</div>
+          <div className="truncate text-xs text-text-muted">
+            {style.label}
+            {def.isDrums ? "" : " · follows progression"}
+          </div>
         </div>
         <Button
           size="sm"
