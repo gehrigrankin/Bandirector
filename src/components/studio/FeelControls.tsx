@@ -3,8 +3,12 @@
 interface Props {
   swing: number; // 0..0.7
   humanize: number; // 0..1
+  noteLength: number; // 0.3..2
+  reverb: number; // 0..1
   onSwing: (v: number) => void;
   onHumanize: (v: number) => void;
+  onNoteLength: (v: number) => void;
+  onReverb: (v: number) => void;
 }
 
 function Slider({
@@ -42,7 +46,16 @@ function Slider({
   );
 }
 
-export function FeelControls({ swing, humanize, onSwing, onHumanize }: Props) {
+export function FeelControls({
+  swing,
+  humanize,
+  noteLength,
+  reverb,
+  onSwing,
+  onHumanize,
+  onNoteLength,
+  onReverb,
+}: Props) {
   return (
     <section>
       <h2 className="mb-2 text-sm font-semibold text-text-muted">Feel</h2>
@@ -68,6 +81,24 @@ export function FeelControls({ swing, humanize, onSwing, onHumanize }: Props) {
           min={0}
           max={1}
           onChange={onHumanize}
+        />
+        <Slider
+          label="Note Length"
+          value={noteLength}
+          display={
+            noteLength < 0.55 ? "Short" : noteLength > 1.5 ? "Long" : "Medium"
+          }
+          min={0.3}
+          max={2}
+          onChange={onNoteLength}
+        />
+        <Slider
+          label="Reverb"
+          value={reverb}
+          display={reverb < 0.02 ? "Dry" : `${Math.round(reverb * 100)}%`}
+          min={0}
+          max={1}
+          onChange={onReverb}
         />
       </div>
     </section>

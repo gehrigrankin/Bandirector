@@ -71,20 +71,31 @@ function resolveDrumName(logical: string, names: string[]): string | null {
   }
 }
 
+interface ScheduledBar {
+  start: number;
+  dur: number;
+  index: number;
+}
+
 class Engine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private reverbWet: GainNode | null = null;
+  private convolver: ConvolverNode | null = null;
   private handles = new Map<string, Handle>();
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBarTime = 0;
   private barIndex = 0;
+  private scheduledBars: ScheduledBar[] = [];
   private getTracks: (() => ScheduledTrack[]) | null = null;
 
   bpm = 100;
   masterVolume = 0.9;
   swing = 0; // 0 = straight, ~0.6 = heavy shuffle
   humanize = 0.5; // 0 = robotic/quantized, 1 = loose
+  noteLength = 1; // multiplies note durations (sustain): 0.3 short … 2 long
+  reverb = 0.2; // 0 = dry … 1 = wet
 
   get running(): boolean {
     return this.timer !== null;
@@ -100,8 +111,32 @@ class Engine {
       this.master = this.ctx.createGain();
       this.master.gain.value = this.masterVolume;
       this.master.connect(this.ctx.destination);
+
+      // Reverb send: master -> convolver -> wet gain -> destination (parallel
+      // to the dry master path). The impulse response is generated, so there's
+      // no asset to fetch.
+      this.convolver = this.ctx.createConvolver();
+      this.convolver.buffer = this.makeImpulse(this.ctx, 2.4, 2.6);
+      this.reverbWet = this.ctx.createGain();
+      this.reverbWet.gain.value = this.reverb * 0.5;
+      this.master.connect(this.convolver);
+      this.convolver.connect(this.reverbWet);
+      this.reverbWet.connect(this.ctx.destination);
     }
     return this.ctx;
+  }
+
+  private makeImpulse(ctx: AudioContext, seconds: number, decay: number): AudioBuffer {
+    const rate = ctx.sampleRate;
+    const length = Math.floor(rate * seconds);
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+      }
+    }
+    return impulse;
   }
 
   /** Must be called from a user gesture (first Play) to satisfy autoplay policy. */
@@ -127,6 +162,31 @@ class Engine {
 
   setHumanize(v: number) {
     this.humanize = Math.max(0, Math.min(1, v));
+  }
+
+  setNoteLength(v: number) {
+    this.noteLength = Math.max(0.2, Math.min(2.5, v));
+  }
+
+  setReverb(v: number) {
+    this.reverb = Math.max(0, Math.min(1, v));
+    if (this.reverbWet && this.ctx) {
+      this.reverbWet.gain.setTargetAtTime(this.reverb * 0.5, this.ctx.currentTime, 0.02);
+    }
+  }
+
+  /** Current transport position for the UI playhead, or null when idle.
+   *  `phase` is 0..1 within the audible bar. */
+  getPlayhead(): { barIndex: number; phase: number } | null {
+    if (!this.timer || !this.ctx) return null;
+    const now = this.ctx.currentTime;
+    for (let i = this.scheduledBars.length - 1; i >= 0; i--) {
+      const bar = this.scheduledBars[i];
+      if (now >= bar.start && now < bar.start + bar.dur) {
+        return { barIndex: bar.index, phase: (now - bar.start) / bar.dur };
+      }
+    }
+    return null;
   }
 
   barSeconds(): number {
@@ -211,6 +271,13 @@ class Engine {
     const anySolo = tracks.some((t) => t.solo);
     const barSeconds = this.barSeconds();
 
+    // Record this bar for the UI playhead; drop bars that have finished.
+    this.scheduledBars.push({ start: barStart, dur: barSeconds, index: barIndex });
+    const cutoff = this.context().currentTime - 0.2;
+    while (this.scheduledBars.length > 0 && this.scheduledBars[0].start + this.scheduledBars[0].dur < cutoff) {
+      this.scheduledBars.shift();
+    }
+
     for (const track of tracks) {
       const handle = this.ensureHandle(track); // starts loading even if silent
       const audible = anySolo ? track.solo : !track.muted;
@@ -244,12 +311,19 @@ class Engine {
         velocity += Math.abs(beatPos - Math.round(beatPos)) < 0.12 ? 6 : -5;
         velocity = Math.max(1, Math.min(127, Math.round(velocity)));
 
+        // Note length (sustain): scale melodic durations; leave drum one-shots
+        // alone so they aren't truncated. Longer notes get a longer release tail.
+        const duration =
+          handle.isDrums || ev.duration == null
+            ? ev.duration
+            : ev.duration * this.noteLength;
+
         handle.instrument.start({
           note,
           time: barStart + offset,
-          duration: ev.duration,
+          duration,
           velocity,
-          ampRelease: 0.18, // soften note-offs so they don't click/cut hard
+          ampRelease: 0.12 + this.noteLength * 0.2,
         });
       }
     }
@@ -268,6 +342,7 @@ class Engine {
     if (this.timer) return;
     this.getTracks = getTracks;
     this.barIndex = 0;
+    this.scheduledBars = [];
     this.nextBarTime = this.context().currentTime + 0.12;
     this.tick();
     this.timer = setInterval(this.tick, LOOKAHEAD_MS);
@@ -278,6 +353,7 @@ class Engine {
       clearInterval(this.timer);
       this.timer = null;
     }
+    this.scheduledBars = [];
     for (const handle of this.handles.values()) {
       try {
         handle.instrument.stop();

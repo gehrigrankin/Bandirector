@@ -18,6 +18,7 @@ import {
 interface Props {
   instrumentId: InstrumentId;
   pattern: Pattern;
+  playStep: number | null;
   onToggleStep: (index: number) => void;
   onToggleDrum: (voice: DrumVoice, index: number) => void;
   onArticulation: (a: Articulation) => void;
@@ -28,10 +29,12 @@ interface Props {
 /** A row of 16 toggle cells, beat-grouped, horizontally scrollable. */
 function StepCells({
   steps,
+  playStep,
   onToggle,
   tone = "accent",
 }: {
   steps: boolean[];
+  playStep: number | null;
   onToggle: (i: number) => void;
   tone?: "accent" | "soft";
 }) {
@@ -54,6 +57,7 @@ function StepCells({
               : i % BEAT_STEPS === 0
                 ? "border-border bg-bg-higher"
                 : "border-border bg-bg-raised",
+            i === playStep ? "ring-2 ring-inset ring-text" : "",
           )}
         />
       ))}
@@ -64,6 +68,7 @@ function StepCells({
 export function StepSequencer({
   instrumentId,
   pattern,
+  playStep,
   onToggleStep,
   onToggleDrum,
   onArticulation,
@@ -124,7 +129,7 @@ export function StepSequencer({
       <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-bg-raised p-3">
         {pattern.kind === "melodic" ? (
           <div className="min-w-max">
-            <StepCells steps={pattern.hits} onToggle={onToggleStep} />
+            <StepCells steps={pattern.hits} playStep={playStep} onToggle={onToggleStep} />
           </div>
         ) : (
           <div className="min-w-max space-y-1.5">
@@ -135,6 +140,7 @@ export function StepSequencer({
                 </span>
                 <StepCells
                   steps={pattern.rows[v.id]}
+                  playStep={playStep}
                   onToggle={(i) => onToggleDrum(v.id, i)}
                   tone={v.id === "kick" || v.id === "snare" ? "accent" : "soft"}
                 />

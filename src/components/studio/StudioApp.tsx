@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
 import { getInstrument, type InstrumentId } from "@/lib/audio/instruments";
 import {
+  STEP_COUNT,
   clonePattern,
   defaultPattern,
   emptyPatternLike,
@@ -61,7 +62,10 @@ export function StudioApp() {
   const [masterVolume, setMasterVolume] = useState(0.9);
   const [swing, setSwing] = useState(0);
   const [humanize, setHumanize] = useState(0.5);
+  const [noteLength, setNoteLength] = useState(1);
+  const [reverb, setReverb] = useState(0.2);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playStep, setPlayStep] = useState<number | null>(null);
 
   // The loop's chord changes (one bar per step), shared by every layer.
   const [progression, setProgression] = useState<ChordStep[]>([
@@ -105,7 +109,36 @@ export function StudioApp() {
   useEffect(() => {
     engine.setHumanize(humanize);
   }, [engine, humanize]);
+  useEffect(() => {
+    engine.setNoteLength(noteLength);
+  }, [engine, noteLength]);
+  useEffect(() => {
+    engine.setReverb(reverb);
+  }, [engine, reverb]);
   useEffect(() => () => engine.stop(), [engine]);
+
+  // Drive the step playhead off the audio clock (only re-render on step change).
+  useEffect(() => {
+    if (!isPlaying) {
+      setPlayStep(null);
+      return;
+    }
+    let raf = 0;
+    let last = -1;
+    const tick = () => {
+      const ph = engine.getPlayhead();
+      if (ph) {
+        const s = Math.floor(ph.phase * STEP_COUNT) % STEP_COUNT;
+        if (s !== last) {
+          last = s;
+          setPlayStep(s);
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isPlaying, engine]);
 
   const handlePlay = useCallback(async () => {
     await engine.resume();
@@ -113,9 +146,11 @@ export function StudioApp() {
     engine.setMasterVolume(masterVolume);
     engine.setSwing(swing);
     engine.setHumanize(humanize);
+    engine.setNoteLength(noteLength);
+    engine.setReverb(reverb);
     engine.start(() => scheduledRef.current);
     setIsPlaying(true);
-  }, [engine, bpm, masterVolume, swing, humanize]);
+  }, [engine, bpm, masterVolume, swing, humanize, noteLength, reverb]);
 
   const handleStop = useCallback(() => {
     engine.stop();
@@ -231,6 +266,7 @@ export function StudioApp() {
           <StepSequencer
             instrumentId={selection.instrumentId}
             pattern={selection.pattern}
+            playStep={playStep}
             onToggleStep={toggleStep}
             onToggleDrum={toggleDrum}
             onArticulation={setArticulation}
@@ -240,8 +276,12 @@ export function StudioApp() {
           <FeelControls
             swing={swing}
             humanize={humanize}
+            noteLength={noteLength}
+            reverb={reverb}
             onSwing={setSwing}
             onHumanize={setHumanize}
+            onNoteLength={setNoteLength}
+            onReverb={setReverb}
           />
           <LoopPad
             selection={selection}
