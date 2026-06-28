@@ -14,10 +14,12 @@ import {
   type DrumVoice,
   type Pattern,
 } from "@/lib/audio/patterns";
-import { chordToMidi } from "@/lib/music/chord";
+import { chordToMidi, type Mode } from "@/lib/music/chord";
 import type { ChordStep, Selection, Track } from "@/components/studio/types";
 import { InstrumentPicker } from "@/components/studio/InstrumentPicker";
+import { KeyBar } from "@/components/studio/KeyBar";
 import { ProgressionBar } from "@/components/studio/ProgressionBar";
+import { DiatonicChords } from "@/components/studio/DiatonicChords";
 import { ChordGrid } from "@/components/studio/ChordGrid";
 import { StepSequencer } from "@/components/studio/StepSequencer";
 import { FeelControls } from "@/components/studio/FeelControls";
@@ -66,6 +68,11 @@ export function StudioApp() {
   const [reverb, setReverb] = useState(0.2);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playStep, setPlayStep] = useState<number | null>(null);
+
+  // The song key drives which chords are suggested.
+  const [tonic, setTonic] = useState("C");
+  const [mode, setMode] = useState<Mode>("major");
+  const [showAllChords, setShowAllChords] = useState(false);
 
   // The loop's chord changes (one bar per step), shared by every layer.
   const [progression, setProgression] = useState<ChordStep[]>([
@@ -246,6 +253,8 @@ export function StudioApp() {
         <div className="mx-auto max-w-3xl space-y-6">
           <InstrumentPicker value={selection.instrumentId} onSelect={selectInstrument} />
 
+          <KeyBar tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+
           <section>
             <h2 className="mb-2 text-sm font-semibold text-text-muted">Progression</h2>
             <ProgressionBar
@@ -257,12 +266,32 @@ export function StudioApp() {
             />
           </section>
 
-          <ChordGrid
-            root={step.root}
-            quality={step.quality}
-            onRoot={(root) => setStep({ root })}
-            onQuality={(quality) => setStep({ quality })}
+          <DiatonicChords
+            tonic={tonic}
+            mode={mode}
+            current={step}
+            onPick={(root, quality) => setStep({ root, quality })}
           />
+
+          <section>
+            <button
+              type="button"
+              onClick={() => setShowAllChords((v) => !v)}
+              className="text-sm font-medium text-text-muted hover:text-text"
+            >
+              {showAllChords ? "Hide other chords" : "More chords (any key)"}
+            </button>
+            {showAllChords && (
+              <div className="mt-3">
+                <ChordGrid
+                  root={step.root}
+                  quality={step.quality}
+                  onRoot={(root) => setStep({ root })}
+                  onQuality={(quality) => setStep({ quality })}
+                />
+              </div>
+            )}
+          </section>
           <StepSequencer
             instrumentId={selection.instrumentId}
             pattern={selection.pattern}

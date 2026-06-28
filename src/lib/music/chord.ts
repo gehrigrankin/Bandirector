@@ -140,3 +140,67 @@ export function chordToMidi(
   const rootMidi = (octave + 1) * 12 + semitone;
   return chordIntervals(qualityId).map((i) => rootMidi + i);
 }
+
+// ─── Keys & diatonic chords ──────────────────────────────────────────────────
+
+export type Mode = "major" | "minor";
+
+const PITCH_NAMES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
+
+// Scale degrees (semitones from the tonic) and the triad quality + Roman
+// numeral each degree gets in major and natural-minor keys.
+const SCALE = {
+  major: {
+    steps: [0, 2, 4, 5, 7, 9, 11],
+    qualities: ["maj", "min", "min", "maj", "maj", "min", "dim"],
+    numerals: ["I", "ii", "iii", "IV", "V", "vi", "vii°"],
+  },
+  minor: {
+    steps: [0, 2, 3, 5, 7, 8, 10],
+    qualities: ["min", "dim", "maj", "min", "min", "maj", "maj"],
+    numerals: ["i", "ii°", "III", "iv", "v", "VI", "VII"],
+  },
+} as const;
+
+export interface DiatonicChord {
+  numeral: string;
+  root: string;
+  quality: string; // quality id
+}
+
+/** The seven diatonic chords (triads) of a key, in scale order. */
+export function diatonicChords(tonic: string, mode: Mode): DiatonicChord[] {
+  const t = noteToSemitone(tonic) ?? 0;
+  const s = SCALE[mode];
+  return s.steps.map((step, i) => ({
+    numeral: s.numerals[i],
+    root: PITCH_NAMES[(t + step) % 12],
+    quality: s.qualities[i],
+  }));
+}
+
+/** True when a chord belongs to the given key. */
+export function isInKey(
+  root: string,
+  quality: string,
+  tonic: string,
+  mode: Mode,
+): boolean {
+  const r = noteToSemitone(root);
+  return diatonicChords(tonic, mode).some(
+    (c) => noteToSemitone(c.root) === r && c.quality === quality,
+  );
+}
