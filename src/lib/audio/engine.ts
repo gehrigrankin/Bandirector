@@ -83,6 +83,8 @@ class Engine {
 
   bpm = 100;
   masterVolume = 0.9;
+  swing = 0; // 0 = straight, ~0.6 = heavy shuffle
+  humanize = 0.5; // 0 = robotic/quantized, 1 = loose
 
   get running(): boolean {
     return this.timer !== null;
@@ -119,6 +121,14 @@ class Engine {
     this.bpm = bpm;
   }
 
+  setSwing(v: number) {
+    this.swing = Math.max(0, Math.min(0.7, v));
+  }
+
+  setHumanize(v: number) {
+    this.humanize = Math.max(0, Math.min(1, v));
+  }
+
   barSeconds(): number {
     return (60 / this.bpm) * BEATS_PER_BAR;
   }
@@ -138,7 +148,12 @@ class Engine {
     if (def.isDrums) {
       instrument = DrumMachine(ctx, { destination: gain });
     } else {
-      instrument = Soundfont(ctx, { instrument: def.gm, destination: gain });
+      // MusyngKite is the richer, more natural-sounding of smplr's two kits.
+      instrument = Soundfont(ctx, {
+        instrument: def.gm,
+        destination: gain,
+        kit: "MusyngKite",
+      });
     }
 
     const handle: Handle = {
@@ -204,6 +219,7 @@ class Engine {
       if (!audible || !handle.loaded) continue;
 
       const events = track.getBarEvents(barSeconds, barIndex);
+      const eighth = barSeconds / 8;
       for (const ev of events) {
         let note = ev.note;
         if (handle.isDrums) {
@@ -211,11 +227,29 @@ class Engine {
           if (!resolved) continue;
           note = resolved;
         }
+
+        // Groove + humanization: what turns a quantized grid into a player.
+        let offset = ev.time;
+        // Swing: push the off-beat eighth-notes later.
+        if (this.swing > 0) {
+          const slot = Math.round(offset / eighth);
+          if (slot % 2 === 1) offset += this.swing * eighth * 0.6;
+        }
+        // Micro-timing jitter (±~12ms at full humanize).
+        offset = Math.max(0, offset + (Math.random() * 2 - 1) * 0.024 * this.humanize);
+        // Velocity variation (±~26 at full humanize) so nothing is mechanical.
+        let velocity = (ev.velocity ?? 80) + (Math.random() * 2 - 1) * 26 * this.humanize;
+        // Light metric accent: notes on the beat sing a little over off-beats.
+        const beatPos = offset / (barSeconds / 4);
+        velocity += Math.abs(beatPos - Math.round(beatPos)) < 0.12 ? 6 : -5;
+        velocity = Math.max(1, Math.min(127, Math.round(velocity)));
+
         handle.instrument.start({
           note,
-          time: barStart + ev.time,
+          time: barStart + offset,
           duration: ev.duration,
-          velocity: ev.velocity,
+          velocity,
+          ampRelease: 0.18, // soften note-offs so they don't click/cut hard
         });
       }
     }

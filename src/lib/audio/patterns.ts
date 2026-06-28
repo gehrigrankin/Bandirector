@@ -24,7 +24,7 @@ export interface StyleDef {
   generate: StyleGenerator;
 }
 
-const STAGGER = 0.014; // seconds between strings in a strum
+const STAGGER = 0.022; // seconds between strings in a strum (relaxed, human)
 
 function at(notes: number[], i: number): number {
   return notes[((i % notes.length) + notes.length) % notes.length];

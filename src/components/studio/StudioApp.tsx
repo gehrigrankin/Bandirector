@@ -10,6 +10,7 @@ import { InstrumentPicker } from "@/components/studio/InstrumentPicker";
 import { ProgressionBar } from "@/components/studio/ProgressionBar";
 import { ChordGrid } from "@/components/studio/ChordGrid";
 import { StylePicker } from "@/components/studio/StylePicker";
+import { FeelControls } from "@/components/studio/FeelControls";
 import { LoopPad } from "@/components/studio/LoopPad";
 import { TrackRack } from "@/components/studio/TrackRack";
 import { TransportBar } from "@/components/studio/TransportBar";
@@ -50,6 +51,8 @@ export function StudioApp() {
 
   const [bpm, setBpm] = useState(100);
   const [masterVolume, setMasterVolume] = useState(0.9);
+  const [swing, setSwing] = useState(0);
+  const [humanize, setHumanize] = useState(0.5);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // The loop's chord changes (one bar per step), shared by every layer.
@@ -90,15 +93,23 @@ export function StudioApp() {
   useEffect(() => {
     engine.setMasterVolume(masterVolume);
   }, [engine, masterVolume]);
+  useEffect(() => {
+    engine.setSwing(swing);
+  }, [engine, swing]);
+  useEffect(() => {
+    engine.setHumanize(humanize);
+  }, [engine, humanize]);
   useEffect(() => () => engine.stop(), [engine]);
 
   const handlePlay = useCallback(async () => {
     await engine.resume();
     engine.setBpm(bpm);
     engine.setMasterVolume(masterVolume);
+    engine.setSwing(swing);
+    engine.setHumanize(humanize);
     engine.start(() => scheduledRef.current);
     setIsPlaying(true);
-  }, [engine, bpm, masterVolume]);
+  }, [engine, bpm, masterVolume, swing, humanize]);
 
   const handleStop = useCallback(() => {
     engine.stop();
@@ -179,6 +190,12 @@ export function StudioApp() {
             instrumentId={selection.instrumentId}
             styleId={selection.styleId}
             onSelect={(styleId) => setSelection((s) => ({ ...s, styleId }))}
+          />
+          <FeelControls
+            swing={swing}
+            humanize={humanize}
+            onSwing={setSwing}
+            onHumanize={setHumanize}
           />
           <LoopPad
             selection={selection}
