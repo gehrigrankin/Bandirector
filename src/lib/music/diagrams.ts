@@ -1,4 +1,9 @@
-import { isMinor, parseChord } from "@/lib/music/chord";
+import {
+  chordIntervals,
+  isMinor,
+  parseChord,
+  qualityIdFromToken,
+} from "@/lib/music/chord";
 
 export interface GuitarVoicing {
   // strings from low to high (E A D G B E); -1 = mute, 0 = open, n = fret
@@ -36,17 +41,10 @@ export function guitarVoicing(chord: string): GuitarVoicing | null {
   return (minor ? OPEN_MINOR : OPEN_MAJOR)[key] ?? null;
 }
 
-// Piano: semitone offsets from root for triad
+// Piano: semitone offsets from root for the chord voicing. Reuses the canonical
+// quality intervals so the diagram and the Songwriter Studio stay in sync.
 export function pianoTriadOffsets(chord: string): number[] {
   const parsed = parseChord(chord);
   if (!parsed) return [0, 4, 7];
-  const minor = isMinor(parsed.quality);
-  if (parsed.quality === "dim") return [0, 3, 6];
-  if (parsed.quality === "aug") return [0, 4, 8];
-  if (parsed.quality === "sus2") return [0, 2, 7];
-  if (parsed.quality === "sus4") return [0, 5, 7];
-  if (parsed.quality === "7") return [0, 4, 7, 10];
-  if (parsed.quality === "maj7") return [0, 4, 7, 11];
-  if (parsed.quality === "m7") return [0, 3, 7, 10];
-  return minor ? [0, 3, 7] : [0, 4, 7];
+  return chordIntervals(qualityIdFromToken(parsed.quality));
 }

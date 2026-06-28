@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Database, PlaybackState } from "@/lib/types/database";
+import type { Database, Instrument, PlaybackState } from "@/lib/types/database";
 import {
   getOrCreateParticipantId,
   getStoredDisplayName,
@@ -166,7 +166,7 @@ export function RoomView({ room, initialSong, isHost, currentUserId }: Props) {
           room_id: room.id,
           participant_id: participantId,
           display_name: displayName,
-          instrument,
+          instrument: instrument as Instrument,
           style,
         },
         { onConflict: "room_id,participant_id" },
@@ -184,7 +184,7 @@ export function RoomView({ room, initialSong, isHost, currentUserId }: Props) {
     if (!me) return;
     const { data } = await supabase
       .from("room_participants")
-      .update({ instrument, style })
+      .update({ instrument: instrument as Instrument, style })
       .eq("room_id", room.id)
       .eq("participant_id", participantId)
       .select()

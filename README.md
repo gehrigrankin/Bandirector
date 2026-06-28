@@ -1,12 +1,23 @@
 # Bandirector
 
-Real-time jam session web app. Host uploads an MP3, the browser analyzes chords/tempo/key, and everyone picks their instrument + style and sees their part synced to a timeline.
+Bandirector is a multi-part music app. The two parts shipping today:
+
+- **Songwriter Studio** (`/studio`) — a chord + loop workstation. Pick a root and
+  quality, choose a playing style for an instrument, loop it, and lock loops to
+  layer a full arrangement of real (soundfont) instruments under one transport.
+- **Jam Together** (`/jam`) — the real-time jam: a host uploads an MP3, the
+  browser analyzes chords/tempo/key, and everyone picks their instrument + style
+  and sees their part synced to a timeline.
+
+See [ROADMAP.md](./ROADMAP.md) for where this is going.
 
 ## Stack
 
 - **Next.js 14** (App Router) + TypeScript
 - **Supabase** (Postgres + Auth + Realtime + Storage)
 - **Tailwind CSS** (dark theme, mobile-first)
+- **smplr** (Soundfont + DrumMachine) with a custom lookahead scheduler for the
+  Songwriter Studio
 - **Web Worker** audio analysis (essentia.js / chord-detector)
 - **LRCLIB** for synced lyrics
 

@@ -68,8 +68,6 @@ export function usePlaybackSync({ isHost, roomId, song, playback }: Params) {
   const publishState = useCallback(
     async (next: Partial<PlaybackState>) => {
       const state: PlaybackState = {
-        playing: false,
-        position_ms: 0,
         ...playback,
         ...next,
         updated_at: new Date().toISOString(),

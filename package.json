@@ -10,16 +10,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.1",
-    "@supabase/supabase-js": "^2.45.4",
-    "chordsheetjs": "^9.10.0",
+    "@supabase/ssr": "0.5.1",
+    "@supabase/supabase-js": "2.45.4",
+    "chordsheetjs": "^14.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.445.0",
     "next": "14.2.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "smplr": "^1.0.0",
     "tailwind-merge": "^2.5.2",
     "zod": "^3.23.8"
+  },
+  "overrides": {
+    "@supabase/postgrest-js": "1.16.1"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",
