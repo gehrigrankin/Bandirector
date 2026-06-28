@@ -1,51 +1,99 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { JoinRoomForm } from "@/components/room/JoinRoomForm";
+import { Music2, Users, BookOpen, GraduationCap } from "lucide-react";
+import { TopNav } from "@/components/ui/TopNav";
 
-export default function LandingPage() {
+interface Part {
+  href: string;
+  title: string;
+  desc: string;
+  icon: typeof Music2;
+  soon?: boolean;
+}
+
+const PARTS: Part[] = [
+  {
+    href: "/studio",
+    title: "Songwriter Studio",
+    desc: "Build chords, pick a playing style, loop it, and lock instruments together to layer an arrangement.",
+    icon: Music2,
+  },
+  {
+    href: "/jam",
+    title: "Jam Together",
+    desc: "Upload a song, analyze it, and everyone plays their part in a synced room.",
+    icon: Users,
+  },
+  {
+    href: "#",
+    title: "How to Play a Song",
+    desc: "Learn a specific song — chords, sections, and each instrument's part to play along.",
+    icon: BookOpen,
+    soon: true,
+  },
+  {
+    href: "#",
+    title: "Learn & Track Progress",
+    desc: "Track what you know across guitar, piano, drums, theory, songs learned — and what's next.",
+    icon: GraduationCap,
+    soon: true,
+  },
+];
+
+export default function HubPage() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-between px-6 py-10 safe-top safe-bottom">
-      <header className="w-full max-w-lg">
-        <h1 className="text-4xl font-bold tracking-tight">Bandirector</h1>
-        <p className="mt-2 text-text-muted">
-          Upload a song. Everyone plays their part.
-        </p>
-      </header>
-
-      <section className="w-full max-w-lg space-y-8 py-10">
-        <div className="rounded-2xl border border-border bg-bg-raised p-6">
-          <h2 className="text-xl font-semibold">Join a jam</h2>
-          <p className="mt-1 text-sm text-text-muted">
-            Enter the 6-letter room code from your host.
+    <div className="flex min-h-dvh flex-col">
+      <TopNav />
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 safe-bottom">
+        <header>
+          <h1 className="text-4xl font-bold tracking-tight">Bandirector</h1>
+          <p className="mt-2 text-text-muted">
+            Your music workshop — write, practice, and jam.
           </p>
-          <div className="mt-4">
-            <JoinRoomForm />
-          </div>
-        </div>
+        </header>
 
-        <div className="rounded-2xl border border-border bg-bg-raised p-6">
-          <h2 className="text-xl font-semibold">Host a jam</h2>
-          <p className="mt-1 text-sm text-text-muted">
-            Sign in to upload songs and start a room.
-          </p>
-          <div className="mt-4 flex gap-3">
-            <Link href="/signup" className="flex-1">
-              <Button className="w-full" size="lg">
-                Create account
-              </Button>
-            </Link>
-            <Link href="/login" className="flex-1">
-              <Button className="w-full" size="lg" variant="secondary">
-                Log in
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {PARTS.map((part) => {
+            const Icon = part.icon;
+            const inner = (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="grid size-10 place-items-center rounded-xl bg-bg-higher text-accent">
+                    <Icon className="size-5" />
+                  </span>
+                  <h2 className="text-lg font-semibold">{part.title}</h2>
+                  {part.soon ? (
+                    <span className="ml-auto rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-dim">
+                      Soon
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-sm text-text-muted">{part.desc}</p>
+              </>
+            );
 
-      <footer className="text-xs text-text-dim">
-        Upload-only. No scraping, no YouTube. Your jams stay yours.
-      </footer>
-    </main>
+            if (part.soon) {
+              return (
+                <div
+                  key={part.title}
+                  className="cursor-not-allowed rounded-2xl border border-border bg-bg-raised p-5 opacity-60"
+                >
+                  {inner}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={part.title}
+                href={part.href}
+                className="rounded-2xl border border-border bg-bg-raised p-5 transition-colors hover:border-accent/50 hover:bg-bg-higher"
+              >
+                {inner}
+              </Link>
+            );
+          })}
+        </div>
+      </main>
+    </div>
   );
 }

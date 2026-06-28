@@ -67,6 +67,7 @@ export interface Database {
           display_name?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       songs: {
         Row: {
@@ -98,6 +99,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["songs"]["Insert"]>;
+        Relationships: [];
       };
       favorites: {
         Row: {
@@ -111,6 +113,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["favorites"]["Insert"]>;
+        Relationships: [];
       };
       rooms: {
         Row: {
@@ -132,6 +135,7 @@ export interface Database {
           closed_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["rooms"]["Insert"]>;
+        Relationships: [];
       };
       room_participants: {
         Row: {
@@ -153,7 +157,14 @@ export interface Database {
         Update: Partial<
           Database["public"]["Tables"]["room_participants"]["Insert"]
         >;
+        Relationships: [];
       };
     };
+    // The Supabase typed client requires these keys to recognise the schema;
+    // without them every query resolves to `never`.
+    Views: { [_ in never]: never };
+    Functions: { [_ in never]: never };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
   };
 }

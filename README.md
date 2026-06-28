@@ -1,6 +1,13 @@
 # Bandirector
 
-Real-time jam session web app. Host uploads an MP3, the browser analyzes chords/tempo/key, and everyone picks their instrument + style and sees their part synced to a timeline.
+A multi-part music app. See **[ROADMAP.md](./ROADMAP.md)** for all the parts.
+
+- **Jam Together** (`/jam`) — host uploads an MP3, the browser analyzes
+  chords/tempo/key, and everyone picks their instrument + style and sees their
+  part synced to a timeline.
+- **Songwriter Studio** (`/studio`) — a chord/loop workstation: pick a chord and
+  its variations, choose a playing style per instrument, and lock loops to layer
+  a whole band in sync (real sampled instruments via [smplr](https://github.com/danigb/smplr)).
 
 ## Stack
 
@@ -8,6 +15,7 @@ Real-time jam session web app. Host uploads an MP3, the browser analyzes chords/
 - **Supabase** (Postgres + Auth + Realtime + Storage)
 - **Tailwind CSS** (dark theme, mobile-first)
 - **Web Worker** audio analysis (essentia.js / chord-detector)
+- **smplr** soundfont sampler + sequencer (Songwriter Studio)
 - **LRCLIB** for synced lyrics
 
 ## Quickstart
