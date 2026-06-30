@@ -2,21 +2,21 @@
 
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { chordSymbol } from "@/lib/music/chord";
 import { getInstrument } from "@/lib/audio/instruments";
 import { patternSummary } from "@/lib/audio/patterns";
-import type { ChordStep, Selection } from "@/components/studio/types";
+import type { Selection } from "@/components/studio/types";
 
 interface Props {
   selection: Selection;
-  progression: ChordStep[];
+  /** Progression chord names joined for display (resolved for chord colour). */
+  chords: string;
+  barCount: number;
   isPlaying: boolean;
   onLock: () => void;
 }
 
-export function LoopPad({ selection, progression, isPlaying, onLock }: Props) {
+export function LoopPad({ selection, chords, barCount, isPlaying, onLock }: Props) {
   const def = getInstrument(selection.instrumentId);
-  const chords = progression.map((s) => chordSymbol(s.root, s.quality)).join(" · ");
   return (
     <section className="rounded-2xl border border-border bg-bg-raised p-4">
       <div className="flex items-center justify-between gap-3">
@@ -24,7 +24,7 @@ export function LoopPad({ selection, progression, isPlaying, onLock }: Props) {
           <div className="truncate text-2xl font-bold tracking-tight">{chords}</div>
           <div className="mt-1 truncate text-sm text-text-muted">
             {def.label} · {patternSummary(selection.pattern)} ·{" "}
-            {progression.length === 1 ? "1 bar" : `${progression.length} bars`}
+            {barCount === 1 ? "1 bar" : `${barCount} bars`}
           </div>
         </div>
         <Button size="lg" className="shrink-0" onClick={onLock}>

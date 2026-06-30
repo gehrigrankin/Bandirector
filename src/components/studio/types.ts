@@ -1,10 +1,13 @@
 import type { InstrumentId } from "@/lib/audio/instruments";
 import type { Pattern } from "@/lib/audio/patterns";
+import type { ChordExt } from "@/lib/music/chord";
 
 /** One step in the loop's chord progression (one bar). */
 export interface ChordStep {
   root: string;
   quality: string; // quality id
+  /** Optional per-chord colour override; falls back to the global level. */
+  ext?: ChordExt;
 }
 
 /** The instrument part being auditioned in the LoopPad. The chord changes are

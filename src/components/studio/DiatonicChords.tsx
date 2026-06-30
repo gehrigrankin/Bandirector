@@ -4,18 +4,22 @@ import { cn } from "@/lib/utils/cn";
 import {
   chordSymbol,
   diatonicChords,
+  extendQuality,
   noteToSemitone,
+  type ChordExt,
   type Mode,
 } from "@/lib/music/chord";
 
 interface Props {
   tonic: string;
   mode: Mode;
+  /** Active chord colour — diatonic names render as 7ths/9ths to match. */
+  ext: ChordExt;
   current: { root: string; quality: string };
   onPick: (root: string, quality: string) => void;
 }
 
-export function DiatonicChords({ tonic, mode, current, onPick }: Props) {
+export function DiatonicChords({ tonic, mode, ext, current, onPick }: Props) {
   const chords = diatonicChords(tonic, mode);
   const curRoot = noteToSemitone(current.root);
   return (
@@ -48,7 +52,7 @@ export function DiatonicChords({ tonic, mode, current, onPick }: Props) {
                 {c.numeral}
               </span>
               <span className="text-base font-semibold leading-tight">
-                {chordSymbol(c.root, c.quality)}
+                {chordSymbol(c.root, extendQuality(c.root, c.quality, tonic, mode, ext))}
               </span>
             </button>
           );

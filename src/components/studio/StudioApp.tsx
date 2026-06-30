@@ -11,20 +11,31 @@ import {
   presetsFor,
   renderPattern,
   type Articulation,
+  type CompPattern,
   type DrumVoice,
+  type LeftHandTexture,
   type Pattern,
+  type RightHandPattern,
 } from "@/lib/audio/patterns";
 import {
+  chordIntervals,
+  chordSymbol,
   chordToMidi,
+  extendQuality,
+  noteToSemitone,
   progressionFromDegrees,
+  type ChordExt,
   type Mode,
 } from "@/lib/music/chord";
+import type { Voicing } from "@/lib/music/voicing";
 import type { ChordStep, Selection, Track } from "@/components/studio/types";
 import { InstrumentPicker } from "@/components/studio/InstrumentPicker";
 import { KeyBar } from "@/components/studio/KeyBar";
 import { ProgressionBar } from "@/components/studio/ProgressionBar";
 import { Suggestions } from "@/components/studio/Suggestions";
+import { StylePresets } from "@/components/studio/StylePresets";
 import { DiatonicChords } from "@/components/studio/DiatonicChords";
+import { ChordColor } from "@/components/studio/ChordColor";
 import { ChordGrid } from "@/components/studio/ChordGrid";
 import { StepSequencer } from "@/components/studio/StepSequencer";
 import { Slider, lengthLabel, reverbLabel } from "@/components/studio/Slider";
@@ -35,10 +46,30 @@ import { TransportBar } from "@/components/studio/TransportBar";
 
 const PREVIEW_VOLUME = 0.85;
 
+/** Shared harmony context the scheduler reads to resolve chord colour. */
+interface RenderCtx {
+  tonic: string;
+  mode: Mode;
+  chordQuality: ChordExt;
+}
+
+/** True for the keyboard family (Piano, Electric Piano, Organ), which gets the
+ *  chord-colour / voicing / two-hand comp engine. Other families are unchanged. */
+function isKeyboard(instrumentId: InstrumentId): boolean {
+  return getInstrument(instrumentId).family === "keys";
+}
+
+/** The chord quality a track actually plays. Keyboards upgrade triads to the
+ *  current colour level (7th/9th); other instruments keep the base quality. */
+function effectiveQuality(step: ChordStep, instrumentId: InstrumentId, ctx: RenderCtx): string {
+  if (!isKeyboard(instrumentId)) return step.quality;
+  return extendQuality(step.root, step.quality, ctx.tonic, ctx.mode, step.ext ?? ctx.chordQuality);
+}
+
 /** Turn a track into the bar-event closure the scheduler runs. Every track
  *  follows the shared progression (barIndex picks the chord) and renders its
  *  own step pattern over it. */
-function buildScheduled(t: Track, progression: ChordStep[]): ScheduledTrack {
+function buildScheduled(t: Track, progression: ChordStep[], ctx: RenderCtx): ScheduledTrack {
   const def = getInstrument(t.instrumentId);
   return {
     id: t.id,
@@ -49,12 +80,20 @@ function buildScheduled(t: Track, progression: ChordStep[]): ScheduledTrack {
     noteLength: t.noteLength,
     reverb: t.reverb,
     getBarEvents: (barSeconds, barIndex) => {
-      const step = progression[barIndex % progression.length];
-      const chordNotes = def.isDrums
-        ? []
-        : chordToMidi(step.root, step.quality, t.octave);
+      const chord = progression[barIndex % progression.length];
+      const quality = effectiveQuality(chord, t.instrumentId, ctx);
+      const intervals = chordIntervals(quality);
+      const rootPc = noteToSemitone(chord.root) ?? 0;
+      const chordNotes = def.isDrums ? [] : chordToMidi(chord.root, quality, t.octave);
       const rootMidi = chordNotes[0] ?? 60;
-      return renderPattern(t.pattern, { chordNotes, rootMidi, barSeconds, octave: t.octave });
+      return renderPattern(t.pattern, {
+        chordNotes,
+        rootMidi,
+        barSeconds,
+        octave: t.octave,
+        rootPc,
+        intervals,
+      });
     },
   };
 }
@@ -83,6 +122,9 @@ export function StudioApp() {
   const [mode, setMode] = useState<Mode>("major");
   const [showAllChords, setShowAllChords] = useState(false);
 
+  // Global keyboard chord colour: diatonic triads → 7ths → 9ths.
+  const [chordQuality, setChordQuality] = useState<ChordExt>("triad");
+
   // The loop's chord changes (one bar per step), shared by every layer.
   const [progression, setProgression] = useState<ChordStep[]>([
     { root: "C", quality: "maj" },
@@ -99,15 +141,32 @@ export function StudioApp() {
   const nextId = useRef(1);
 
   const step = progression[Math.min(editIndex, progression.length - 1)];
+  const keyboardSelected = isKeyboard(selection.instrumentId);
+
+  // Chord names shown in the UI reflect the active colour (triad → 7th → 9th).
+  const renderCtx = useMemo<RenderCtx>(
+    () => ({ tonic, mode, chordQuality }),
+    [tonic, mode, chordQuality],
+  );
+  const labelFor = useCallback(
+    (s: ChordStep) =>
+      chordSymbol(s.root, extendQuality(s.root, s.quality, tonic, mode, s.ext ?? chordQuality)),
+    [tonic, mode, chordQuality],
+  );
+  const progressionLabels = useMemo(
+    () => progression.map(labelFor),
+    [progression, labelFor],
+  );
 
   // Live snapshot the scheduler reads each bar.
   const scheduled = useMemo<ScheduledTrack[]>(() => {
     const preview = buildScheduled(
       { id: "preview", ...selection, volume: PREVIEW_VOLUME, muted: false, solo: false },
       progression,
+      renderCtx,
     );
-    return [preview, ...tracks.map((t) => buildScheduled(t, progression))];
-  }, [selection, tracks, progression]);
+    return [preview, ...tracks.map((t) => buildScheduled(t, progression, renderCtx))];
+  }, [selection, tracks, progression, renderCtx]);
 
   const scheduledRef = useRef<ScheduledTrack[]>(scheduled);
   useEffect(() => {
@@ -204,6 +263,13 @@ export function StudioApp() {
     setSelection((s) => ({ ...s, pattern: emptyPatternLike(s.pattern) }));
   }, []);
 
+  // ── Keyboard comp editing (left hand / right hand / voicing) ──
+  const setComp = useCallback((patch: Partial<Omit<CompPattern, "kind">>) => {
+    setSelection((s) =>
+      s.pattern.kind === "comp" ? { ...s, pattern: { ...s.pattern, ...patch } } : s,
+    );
+  }, []);
+
   // ── Current part's sound (sustain + reverb) ──
   const setSelNoteLength = useCallback((v: number) => {
     setSelection((s) => ({ ...s, noteLength: v }));
@@ -236,16 +302,44 @@ export function StudioApp() {
     });
   }, []);
   const applyTemplate = useCallback(
-    (degrees: number[]) => {
+    (degrees: number[], ext?: ChordExt) => {
       const chords = progressionFromDegrees(tonic, mode, degrees).map((c) => ({
         root: c.root,
         quality: c.quality,
       }));
       setProgression(chords);
       setEditIndex(0);
+      if (ext) setChordQuality(ext);
     },
     [tonic, mode],
   );
+
+  // ── Genre style bundles — one tap sets colour + voicing + feel + tempo ──
+  const applyStyle = useCallback((style: "jazz" | "neosoul") => {
+    if (style === "jazz") {
+      setBpm(120);
+      setChordQuality("7th");
+      setSwing(0.5);
+      setSelection({
+        instrumentId: "piano",
+        pattern: { kind: "comp", leftHand: "walking", rightHand: "charleston", voicing: "shell" },
+        octave: getInstrument("piano").octave,
+        noteLength: 1,
+        reverb: 0.2,
+      });
+    } else {
+      setBpm(80);
+      setChordQuality("9th");
+      setSwing(0.28);
+      setSelection({
+        instrumentId: "electric_piano",
+        pattern: { kind: "comp", leftHand: "octaves", rightHand: "neosoul", voicing: "rootless" },
+        octave: getInstrument("electric_piano").octave,
+        noteLength: 1.6,
+        reverb: 0.45,
+      });
+    }
+  }, []);
 
   // ── Layers ──
   const lock = useCallback(() => {
@@ -281,12 +375,14 @@ export function StudioApp() {
             <h2 className="mb-2 text-sm font-semibold text-text-muted">Progression</h2>
             <ProgressionBar
               progression={progression}
+              labels={progressionLabels}
               editIndex={editIndex}
               onSelect={setEditIndex}
               onAdd={addStep}
               onRemove={removeStep}
             />
-            <div className="mt-2">
+            <div className="mt-2 space-y-2">
+              <StylePresets onApply={applyStyle} />
               <Suggestions onApply={applyTemplate} />
             </div>
           </section>
@@ -294,9 +390,19 @@ export function StudioApp() {
           <DiatonicChords
             tonic={tonic}
             mode={mode}
+            ext={chordQuality}
             current={step}
             onPick={(root, quality) => setStep({ root, quality })}
           />
+
+          {keyboardSelected && (
+            <ChordColor
+              value={chordQuality}
+              onChange={setChordQuality}
+              stepExt={step.ext}
+              onStepExt={(ext) => setStep({ ext })}
+            />
+          )}
 
           <section>
             <button
@@ -326,6 +432,9 @@ export function StudioApp() {
             onArticulation={setArticulation}
             onPreset={applyPreset}
             onClear={clearPattern}
+            onLeftHand={(v) => setComp({ leftHand: v })}
+            onRightHand={(v) => setComp({ rightHand: v })}
+            onVoicing={(v) => setComp({ voicing: v })}
           />
 
           <section>
@@ -361,7 +470,8 @@ export function StudioApp() {
           />
           <LoopPad
             selection={selection}
-            progression={progression}
+            chords={progressionLabels.join(" · ")}
+            barCount={progression.length}
             isPlaying={isPlaying}
             onLock={lock}
           />

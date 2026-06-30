@@ -2,10 +2,10 @@
 
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { PROGRESSION_TEMPLATES } from "@/lib/music/chord";
+import { PROGRESSION_TEMPLATES, type ChordExt } from "@/lib/music/chord";
 
 interface Props {
-  onApply: (degrees: number[]) => void;
+  onApply: (degrees: number[], ext?: ChordExt) => void;
 }
 
 export function Suggestions({ onApply }: Props) {
@@ -21,7 +21,7 @@ export function Suggestions({ onApply }: Props) {
           size="sm"
           variant="secondary"
           className="shrink-0 snap-start"
-          onClick={() => onApply(t.degrees)}
+          onClick={() => onApply(t.degrees, t.ext)}
         >
           {t.label}
         </Button>

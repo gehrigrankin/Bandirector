@@ -73,6 +73,9 @@ export const QUALITIES: Quality[] = [
   { id: "6", label: "Major 6", symbol: "6", intervals: [0, 4, 7, 9] },
   { id: "m6", label: "Minor 6", symbol: "m6", intervals: [0, 3, 7, 9] },
   { id: "9", label: "Dominant 9", symbol: "9", intervals: [0, 4, 7, 10, 14] },
+  { id: "maj9", label: "Major 9", symbol: "maj9", intervals: [0, 4, 7, 11, 14] },
+  { id: "m9", label: "Minor 9", symbol: "m9", intervals: [0, 3, 7, 10, 14] },
+  { id: "m7b5", label: "Half-diminished", symbol: "m7♭5", intervals: [0, 3, 6, 10] },
   { id: "dim", label: "Diminished", symbol: "dim", intervals: [0, 3, 6] },
   { id: "aug", label: "Augmented", symbol: "aug", intervals: [0, 4, 8] },
 ];
@@ -211,6 +214,8 @@ export interface ProgressionTemplate {
   id: string;
   label: string;
   degrees: number[];
+  /** Optional chord-colour level this progression is built around. */
+  ext?: ChordExt;
 }
 
 export const PROGRESSION_TEMPLATES: ProgressionTemplate[] = [
@@ -221,6 +226,13 @@ export const PROGRESSION_TEMPLATES: ProgressionTemplate[] = [
   { id: "jazz", label: "ii–V–I", degrees: [2, 5, 1] },
   { id: "canon", label: "I–V–vi–iii–IV", degrees: [1, 5, 6, 3, 4] },
   { id: "blues", label: "12-Bar Blues", degrees: [1, 1, 1, 1, 4, 4, 1, 1, 5, 4, 1, 5] },
+  // Jazz / R&B colour — these set the chord-colour level along with the changes.
+  { id: "ii-v-i-7", label: "ii–V–I (7th)", degrees: [2, 5, 1], ext: "7th" },
+  { id: "1-6-2-5-7", label: "I–vi–ii–V", degrees: [1, 6, 2, 5], ext: "7th" },
+  { id: "dorian-vamp", label: "Dorian vamp", degrees: [2, 5], ext: "7th" },
+  { id: "neosoul-vamp", label: "Neo-soul vamp", degrees: [1, 4], ext: "9th" },
+  { id: "rnb-ii-v-i", label: "R&B ii–V–I", degrees: [2, 5, 1], ext: "9th" },
+  { id: "quiet-storm", label: "Quiet storm", degrees: [1, 6, 2, 5], ext: "9th" },
 ];
 
 /** Turn a template's scale degrees into concrete chords for a key. */
@@ -231,4 +243,85 @@ export function progressionFromDegrees(
 ): DiatonicChord[] {
   const diatonic = diatonicChords(tonic, mode);
   return degrees.map((d) => diatonic[(((d - 1) % 7) + 7) % 7]);
+}
+
+// ─── Chord colour (triad → 7th → 9th extension) ──────────────────────────────
+// A keyboard comping dimension: upgrade a diatonic triad to its 7th/9th form.
+// The correct 7th/9th depends on the chord's scale degree (I vs V are both major
+// triads but become maj7 vs dom7), so we look the degree up against the key and
+// fall back to a generic triad-core mapping for chromatic chords.
+
+export type ChordExt = "triad" | "7th" | "9th";
+
+export const CHORD_EXTS: { id: ChordExt; label: string }[] = [
+  { id: "triad", label: "Triad" },
+  { id: "7th", label: "7th" },
+  { id: "9th", label: "9th" },
+];
+
+// Per scale-degree quality ids for each extension level, in scale order.
+const EXTENSION_TABLE: Record<Mode, { seventh: string; ninth: string }[]> = {
+  major: [
+    { seventh: "maj7", ninth: "maj9" }, // I
+    { seventh: "m7", ninth: "m9" }, // ii
+    { seventh: "m7", ninth: "m7" }, // iii (no 9 by default)
+    { seventh: "maj7", ninth: "maj9" }, // IV
+    { seventh: "7", ninth: "9" }, // V
+    { seventh: "m7", ninth: "m9" }, // vi
+    { seventh: "m7b5", ninth: "m7b5" }, // vii°
+  ],
+  minor: [
+    { seventh: "m7", ninth: "m9" }, // i
+    { seventh: "m7b5", ninth: "m7b5" }, // ii°
+    { seventh: "maj7", ninth: "maj9" }, // III
+    { seventh: "m7", ninth: "m9" }, // iv
+    { seventh: "7", ninth: "9" }, // V (harmonic-minor dominant)
+    { seventh: "maj7", ninth: "maj9" }, // VI
+    { seventh: "7", ninth: "9" }, // VII (♭VII dominant)
+  ],
+};
+
+// Fallback for chords that aren't diatonic to the current key, keyed by triad core.
+const GENERIC_EXTENSION: Record<string, { seventh: string; ninth: string }> = {
+  maj: { seventh: "maj7", ninth: "maj9" },
+  min: { seventh: "m7", ninth: "m9" },
+  dim: { seventh: "m7b5", ninth: "m7b5" },
+};
+
+/** Scale-degree index (0–6) of a root within a key, or null if not diatonic. */
+function scaleDegreeIndex(root: string, tonic: string, mode: Mode): number | null {
+  const r = noteToSemitone(root);
+  const t = noteToSemitone(tonic);
+  if (r == null || t == null) return null;
+  const rel = (((r - t) % 12) + 12) % 12;
+  const idx = (SCALE[mode].steps as readonly number[]).indexOf(rel);
+  return idx >= 0 ? idx : null;
+}
+
+/** Reduce any quality to its triad core ("maj" | "min" | "dim"). */
+function triadCore(qualityId: string): string {
+  const iv = chordIntervals(qualityId).map((i) => ((i % 12) + 12) % 12);
+  if (iv.includes(6) && !iv.includes(7)) return "dim";
+  if (iv.includes(3)) return "min";
+  return "maj";
+}
+
+/**
+ * Upgrade a chord's quality to the requested extension level. `triad` returns the
+ * base quality untouched. Diatonic chords use the per-degree table; others use a
+ * generic triad-core mapping. (sus/aug chords are left as-is.)
+ */
+export function extendQuality(
+  root: string,
+  baseQuality: string,
+  tonic: string,
+  mode: Mode,
+  ext: ChordExt,
+): string {
+  if (ext === "triad") return baseQuality;
+  if (/^(sus|aug)/.test(baseQuality)) return baseQuality;
+  const key = ext === "9th" ? "ninth" : "seventh";
+  const idx = scaleDegreeIndex(root, tonic, mode);
+  if (idx != null) return EXTENSION_TABLE[mode][idx][key];
+  return GENERIC_EXTENSION[triadCore(baseQuality)]?.[key] ?? baseQuality;
 }

@@ -8,12 +8,17 @@ import {
   ARTICULATIONS,
   BEAT_STEPS,
   DRUM_VOICES,
+  LEFT_HAND_TEXTURES,
+  RIGHT_HAND_PATTERNS,
   STEP_COUNT,
   presetsFor,
   type Articulation,
+  type LeftHandTexture,
   type Pattern,
+  type RightHandPattern,
   type DrumVoice,
 } from "@/lib/audio/patterns";
+import { VOICINGS, type Voicing } from "@/lib/music/voicing";
 
 interface Props {
   instrumentId: InstrumentId;
@@ -24,6 +29,41 @@ interface Props {
   onArticulation: (a: Articulation) => void;
   onPreset: (presetId: string) => void;
   onClear: () => void;
+  onLeftHand: (v: LeftHandTexture) => void;
+  onRightHand: (v: RightHandPattern) => void;
+  onVoicing: (v: Voicing) => void;
+}
+
+/** A labelled row of mutually-exclusive option chips. */
+function OptionRow<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { id: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div>
+      <span className="mb-1.5 block text-xs font-medium text-text-muted">{label}</span>
+      <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
+        {options.map((o) => (
+          <Button
+            key={o.id}
+            size="md"
+            variant={o.id === value ? "primary" : "secondary"}
+            className="shrink-0 snap-start"
+            onClick={() => onChange(o.id)}
+          >
+            {o.label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /** A row of 16 toggle cells, beat-grouped, horizontally scrollable. */
@@ -74,9 +114,44 @@ export function StepSequencer({
   onArticulation,
   onPreset,
   onClear,
+  onLeftHand,
+  onRightHand,
+  onVoicing,
 }: Props) {
   const family = getInstrument(instrumentId).family;
   const presets = presetsFor(family);
+
+  // Keyboard comping: two hands in separate registers + a voicing, not a grid.
+  if (pattern.kind === "comp") {
+    return (
+      <section>
+        <h2 className="mb-2 text-sm font-semibold text-text-muted">Pattern</h2>
+        <div className="space-y-3 rounded-xl border border-border bg-bg-raised p-3">
+          <OptionRow
+            label="Left hand"
+            options={LEFT_HAND_TEXTURES}
+            value={pattern.leftHand}
+            onChange={onLeftHand}
+          />
+          <OptionRow
+            label="Right hand"
+            options={RIGHT_HAND_PATTERNS}
+            value={pattern.rightHand}
+            onChange={onRightHand}
+          />
+          <OptionRow
+            label="Voicing"
+            options={VOICINGS}
+            value={pattern.voicing}
+            onChange={onVoicing}
+          />
+        </div>
+        <p className="mt-1 text-xs text-text-dim">
+          Left hand holds the bass; the right hand comps a voicing above it.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section>

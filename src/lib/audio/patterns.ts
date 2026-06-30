@@ -8,6 +8,14 @@
 
 import type { BarEvent } from "@/lib/audio/engine";
 import type { StyleFamily } from "@/lib/audio/instruments";
+import {
+  leftHandGuide,
+  leftHandRoot,
+  leftHandStab,
+  leftHandWalk,
+  rightHandVoicing,
+  type Voicing,
+} from "@/lib/music/voicing";
 
 export const STEP_COUNT = 16; // sixteenth-note grid
 export const BEAT_STEPS = 4; // steps per beat (4/4)
@@ -18,6 +26,10 @@ export interface PatternArgs {
   rootMidi: number;
   barSeconds: number;
   octave: number;
+  /** Root pitch-class (0–11) and interval set — used by the keyboard comp
+   *  engine to build register-separated two-hand voicings. */
+  rootPc: number;
+  intervals: number[];
 }
 
 // ─── Articulation (how a melodic hit voices the chord) ───────────────────────
@@ -30,6 +42,38 @@ export const ARTICULATIONS: { id: Articulation; label: string }[] = [
   { id: "arp", label: "Arp" },
   { id: "root", label: "Root" },
   { id: "octave", label: "Octave" },
+];
+
+// ─── Keyboard comping (left-hand texture + right-hand pattern + voicing) ─────
+// Keyboard instruments comp with two hands in separate registers rather than a
+// single articulated row. The texture/pattern names compile down to the same
+// step-trigger events the sequencer already consumes (see renderComp).
+
+export type LeftHandTexture = "bass" | "octaves" | "shell" | "stride" | "walking";
+
+export const LEFT_HAND_TEXTURES: { id: LeftHandTexture; label: string }[] = [
+  { id: "bass", label: "Bass" },
+  { id: "octaves", label: "Octaves" },
+  { id: "shell", label: "Shell" },
+  { id: "stride", label: "Stride" },
+  { id: "walking", label: "Walking" },
+];
+
+export type RightHandPattern =
+  | "block"
+  | "broken"
+  | "arpeggio"
+  | "comp"
+  | "charleston"
+  | "neosoul";
+
+export const RIGHT_HAND_PATTERNS: { id: RightHandPattern; label: string }[] = [
+  { id: "block", label: "Block" },
+  { id: "broken", label: "Broken" },
+  { id: "arpeggio", label: "Arpeggio" },
+  { id: "comp", label: "Comp" },
+  { id: "charleston", label: "Charleston" },
+  { id: "neosoul", label: "Neo-soul" },
 ];
 
 // ─── Drums ───────────────────────────────────────────────────────────────────
@@ -67,7 +111,16 @@ export interface DrumPattern {
   rows: Record<DrumVoice, boolean[]>; // each length STEP_COUNT
 }
 
-export type Pattern = MelodicPattern | DrumPattern;
+/** A two-handed keyboard comp: a left-hand texture, a right-hand pattern, and
+ *  the voicing the right hand uses. Renders to step events in renderComp. */
+export interface CompPattern {
+  kind: "comp";
+  leftHand: LeftHandTexture;
+  rightHand: RightHandPattern;
+  voicing: Voicing;
+}
+
+export type Pattern = MelodicPattern | DrumPattern | CompPattern;
 
 function emptyRow(): boolean[] {
   return Array.from({ length: STEP_COUNT }, () => false);
@@ -89,8 +142,10 @@ function drumKit(spec: Partial<Record<DrumVoice, number[]>>): DrumPattern {
   return { kind: "drums", rows };
 }
 
-/** An empty pattern of the same kind (Clear button), keeping articulation. */
+/** An empty pattern of the same kind (Clear button), keeping articulation.
+ *  Comp patterns have nothing to clear, so they're returned unchanged. */
 export function emptyPatternLike(p: Pattern): Pattern {
+  if (p.kind === "comp") return clonePattern(p);
   return p.kind === "drums"
     ? {
         kind: "drums",
@@ -103,6 +158,7 @@ export function emptyPatternLike(p: Pattern): Pattern {
 
 /** Deep copy so editing a track's pattern never mutates a shared preset. */
 export function clonePattern(p: Pattern): Pattern {
+  if (p.kind === "comp") return { ...p };
   return p.kind === "drums"
     ? {
         kind: "drums",
@@ -172,8 +228,90 @@ function renderDrums(p: DrumPattern, a: PatternArgs): BarEvent[] {
   return events;
 }
 
+const EIGHTH_STEPS = [0, 2, 4, 6, 8, 10, 12, 14];
+
+function renderComp(p: CompPattern, a: PatternArgs): BarEvent[] {
+  const { rootPc, intervals, barSeconds } = a;
+  const stepDur = barSeconds / STEP_COUNT;
+  const events: BarEvent[] = [];
+  const hit = (note: number, step: number, duration: number, velocity: number) =>
+    events.push({ note, time: step * stepDur, duration, velocity });
+
+  // ── Left hand (bass register) ──
+  const root = leftHandRoot(rootPc);
+  const beatDur = stepDur * 3.4;
+  switch (p.leftHand) {
+    case "bass":
+      [0, 8].forEach((s) => hit(root, s, beatDur, 96));
+      break;
+    case "octaves":
+      [0, 8].forEach((s) => {
+        hit(root, s, beatDur, 96);
+        hit(root + 12, s, beatDur, 82);
+      });
+      break;
+    case "shell": {
+      const held = barSeconds * 0.5;
+      hit(root, 0, held, 96);
+      leftHandGuide(rootPc, intervals).forEach((g) => hit(g, 0, held, 76));
+      hit(root, 8, beatDur, 92);
+      break;
+    }
+    case "stride": {
+      [0, 8].forEach((s) => hit(root, s, beatDur, 96));
+      const stab = leftHandStab(rootPc, intervals);
+      [4, 12].forEach((s) => stab.forEach((n) => hit(n, s, stepDur * 1.6, 76)));
+      break;
+    }
+    case "walking": {
+      const line = leftHandWalk(rootPc, intervals);
+      [0, 4, 8, 12].forEach((s, i) => hit(line[i], s, stepDur * 3.4, 92));
+      break;
+    }
+  }
+
+  // ── Right hand (voicing register) ──
+  const voicing = rightHandVoicing(rootPc, intervals, p.voicing);
+  if (voicing.length > 0) {
+    const lo = voicing[0];
+    const hi = voicing[voicing.length - 1];
+    const mid = voicing[Math.min(1, voicing.length - 1)];
+    const chordDur = stepDur * 3;
+    const chord = (step: number, duration: number, velocity: number) =>
+      voicing.forEach((n) => hit(n, step, duration, velocity));
+    const single = (seq: number[]) =>
+      EIGHTH_STEPS.forEach((s, i) => hit(seq[i], s, stepDur * 1.6, 80));
+
+    switch (p.rightHand) {
+      case "block":
+        [0, 4, 8, 12].forEach((s) => chord(s, chordDur, 84));
+        break;
+      case "comp":
+        [0, 6, 12].forEach((s) => chord(s, chordDur, 84));
+        break;
+      case "charleston":
+        [0, 6].forEach((s) => chord(s, chordDur, 84));
+        break;
+      case "neosoul":
+        [0, 6, 12].forEach((s) => chord(s, chordDur, 84));
+        chord(14, stepDur * 2, 76); // anticipation pushing into the next bar
+        break;
+      case "broken":
+        single([lo, hi, mid, hi, lo, hi, mid, hi]);
+        break;
+      case "arpeggio":
+        single([lo, mid, hi, hi, lo, mid, hi, hi]);
+        break;
+    }
+  }
+
+  return events;
+}
+
 export function renderPattern(p: Pattern, a: PatternArgs): BarEvent[] {
-  return p.kind === "drums" ? renderDrums(p, a) : renderMelodic(p, a);
+  if (p.kind === "drums") return renderDrums(p, a);
+  if (p.kind === "comp") return renderComp(p, a);
+  return renderMelodic(p, a);
 }
 
 // ─── Presets (starting points, fully editable after) ─────────────────────────
@@ -251,12 +389,23 @@ export function presetsFor(family: StyleFamily): Preset[] {
   return PRESETS[family];
 }
 
+/** The default keyboard comp: bass left hand, block right hand, plain triads. */
+export function defaultComp(): CompPattern {
+  return { kind: "comp", leftHand: "bass", rightHand: "block", voicing: "triad" };
+}
+
 export function defaultPattern(family: StyleFamily): Pattern {
+  if (family === "keys") return defaultComp();
   return clonePattern(PRESETS[family][0].pattern);
 }
 
 /** Short human description for the LoopPad / track rack. */
 export function patternSummary(p: Pattern): string {
+  if (p.kind === "comp") {
+    const lh = LEFT_HAND_TEXTURES.find((t) => t.id === p.leftHand)?.label ?? "";
+    const rh = RIGHT_HAND_PATTERNS.find((r) => r.id === p.rightHand)?.label ?? "";
+    return `${lh} · ${rh}`;
+  }
   if (p.kind === "drums") {
     const hits = DRUM_VOICE_IDS.reduce(
       (n, v) => n + p.rows[v].filter(Boolean).length,

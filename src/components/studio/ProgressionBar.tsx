@@ -2,11 +2,12 @@
 
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { chordSymbol } from "@/lib/music/chord";
 import type { ChordStep } from "@/components/studio/types";
 
 interface Props {
   progression: ChordStep[];
+  /** Display labels per step, already resolved for the active chord colour. */
+  labels: string[];
   editIndex: number;
   onSelect: (index: number) => void;
   onAdd: () => void;
@@ -15,6 +16,7 @@ interface Props {
 
 export function ProgressionBar({
   progression,
+  labels,
   editIndex,
   onSelect,
   onAdd,
@@ -39,7 +41,7 @@ export function ProgressionBar({
               onClick={() => onSelect(i)}
               className="h-11 min-w-14 pl-3 pr-2 text-base font-semibold"
             >
-              {chordSymbol(step.root, step.quality)}
+              {labels[i] ?? `${step.root}`}
             </button>
             {progression.length > 1 && (
               <button
