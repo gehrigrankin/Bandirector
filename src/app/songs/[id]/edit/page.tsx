@@ -22,14 +22,20 @@ export default async function EditPage({
   if (!song) notFound();
 
   return (
-    <main className="flex min-h-dvh flex-col safe-top safe-bottom">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <Link href="/library" className="text-sm text-text-muted">
+    <main className="flex min-h-dvh flex-col bg-bg safe-top safe-bottom">
+      <header className="flex items-center gap-4 border-b border-line-soft px-4 py-3 md:px-6">
+        <Link
+          href="/library"
+          className="text-sm text-text-muted hover:text-text"
+        >
           ← Library
         </Link>
-        <div className="text-right">
+        <div className="hidden h-6 w-px bg-line-soft sm:block" />
+        <div>
           <div className="text-sm font-semibold">{song.title}</div>
-          <div className="text-xs text-text-muted">{song.artist}</div>
+          <div className="text-[11px] text-text-muted">
+            {song.artist} · chord editor
+          </div>
         </div>
       </header>
       <ChordEditor song={song} />

@@ -174,17 +174,22 @@ export function ChordEditor({ song }: Props) {
     <div className="flex flex-1 flex-col">
       <audio ref={audioRef} preload="auto" playsInline />
 
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+      <div className="flex items-center gap-3 border-b border-line-soft px-4 py-2.5 md:px-6">
         <button
           type="button"
           onClick={togglePlay}
-          className="rounded-full bg-accent p-2 text-black"
+          className="flex size-9 items-center justify-center rounded-full bg-accent text-black shadow-glow-accent"
           aria-label={playing ? "Pause" : "Play"}
         >
-          {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+          {playing ? (
+            <Pause className="size-4" fill="currentColor" />
+          ) : (
+            <Play className="size-4" fill="currentColor" />
+          )}
         </button>
-        <span className="text-xs font-mono text-text-muted">
-          {formatTime(positionSec * 1000)}
+        <span className="font-mono text-[13px] text-text-soft">
+          {formatTime(positionSec * 1000)}{" "}
+          <span className="text-text-dim">/ {formatTime(duration * 1000)}</span>
         </span>
         <div className="flex-1" />
         <Button size="sm" variant="ghost" onClick={undo} aria-label="Undo">
@@ -195,24 +200,39 @@ export function ChordEditor({ song }: Props) {
         </Button>
         <Button size="sm" variant="secondary" onClick={addChord}>
           <Plus className="size-4" />
-          Add chord
+          <span className="hidden sm:inline">Add chord</span>
         </Button>
         <Button size="sm" onClick={save} loading={saving}>
           <Save className="size-4" />
-          Save
+          <span className="hidden sm:inline">Save for everyone</span>
+          <span className="sm:hidden">Save</span>
         </Button>
       </div>
 
       <div
         ref={trackRef}
         onClick={onTrackClick}
-        className="relative overflow-x-auto"
-        style={{ minHeight: 160 }}
+        className="relative flex-1 cursor-pointer overflow-x-auto bg-[#0d0d11]"
+        style={{ minHeight: 220 }}
       >
         <div
           className="relative"
-          style={{ width: Math.max(totalSec * PX_PER_SECOND, 800), height: 160 }}
+          style={{ width: Math.max(totalSec * PX_PER_SECOND, 800), height: 220 }}
         >
+          {/* decorative waveform */}
+          <div className="pointer-events-none absolute inset-x-0 top-6 flex h-24 items-center gap-[3px] px-6 opacity-60">
+            {Array.from({ length: Math.max(60, Math.round(totalSec * 4)) }).map(
+              (_, i) => (
+                <div
+                  key={i}
+                  className="w-1 shrink-0 rounded-full bg-[#2e2e38]"
+                  style={{ height: 16 + ((i * 37) % 74) }}
+                />
+              ),
+            )}
+          </div>
+
+          {/* chord blocks */}
           {chords.map((c, i) => (
             <button
               key={i}
@@ -222,16 +242,17 @@ export function ChordEditor({ song }: Props) {
                 setSelectedIdx(i);
               }}
               className={cn(
-                "absolute top-4 flex items-center justify-center rounded-lg border text-sm font-semibold",
+                "absolute top-[132px] flex items-center justify-center rounded-xl border font-display text-lg font-semibold transition-shadow",
                 c.verified
-                  ? "border-accent bg-accent/20 text-accent"
-                  : "border-border bg-bg text-text",
-                i === selectedIdx && "ring-2 ring-accent",
+                  ? "border-accent bg-accent/[0.14] text-accent"
+                  : "border-line bg-[#15151c] text-text-muted",
+                i === selectedIdx &&
+                  "border-text text-text ring-2 ring-text/20",
               )}
               style={{
                 left: c.time * PX_PER_SECOND,
                 width: Math.max(c.duration * PX_PER_SECOND - 2, 24),
-                height: 100,
+                height: 72,
               }}
             >
               {c.chord}
@@ -239,9 +260,13 @@ export function ChordEditor({ song }: Props) {
           ))}
 
           <div
-            className="absolute top-0 z-10 w-0.5 bg-accent"
-            style={{ left: positionSec * PX_PER_SECOND, height: 160 }}
+            className="absolute top-0 z-10 w-0.5 bg-accent shadow-[0_0_12px_rgba(245,165,36,0.5)]"
+            style={{ left: positionSec * PX_PER_SECOND, height: 220 }}
           />
+        </div>
+        <div className="pointer-events-none absolute bottom-3 left-6 text-[11px] text-text-dim">
+          Amber = verified by a human · Grey = analyzer guess · Click a block to
+          edit
         </div>
       </div>
 
@@ -253,11 +278,11 @@ export function ChordEditor({ song }: Props) {
           onSplit={() => splitChord(selectedIdx)}
         />
       ) : (
-        <div className="px-4 py-6 text-center text-sm text-text-muted">
-          Tap a chord to edit, or use + to add one at the playhead.
-          <br />
-          Saved corrections are global — you&apos;re fixing this song for
-          everyone.
+        <div className="border-t border-line-soft bg-bg-raised px-4 py-5 text-center text-sm text-text-muted md:px-6">
+          Tap a chord to edit, or use{" "}
+          <span className="font-semibold text-text">Add chord</span> to place one
+          at the playhead. Saved corrections are global — you&apos;re fixing this
+          song for everyone.
         </div>
       )}
     </div>
@@ -273,13 +298,16 @@ interface PanelProps {
 
 function SelectedChordPanel({ chord, onPatch, onDelete, onSplit }: PanelProps) {
   return (
-    <div className="mt-auto border-t border-border bg-bg-raised p-4">
-      <div className="mx-auto flex max-w-2xl flex-wrap items-end gap-3">
+    <div className="mt-auto border-t border-line-soft bg-bg-raised p-4 md:px-6">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-full text-[10px] uppercase tracking-[0.12em] text-text-dim sm:w-auto sm:self-center">
+          Selected chord
+        </div>
         <Input
           label="Chord"
           value={chord.chord}
           onChange={(e) => onPatch({ chord: e.target.value })}
-          className="w-28"
+          className="w-28 border-accent font-display text-lg font-semibold"
         />
         <Input
           label="Start (s)"
@@ -287,7 +315,7 @@ function SelectedChordPanel({ chord, onPatch, onDelete, onSplit }: PanelProps) {
           step="0.01"
           value={chord.time}
           onChange={(e) => onPatch({ time: Number(e.target.value) })}
-          className="w-28"
+          className="w-28 font-mono"
         />
         <Input
           label="Duration (s)"
@@ -295,16 +323,20 @@ function SelectedChordPanel({ chord, onPatch, onDelete, onSplit }: PanelProps) {
           step="0.01"
           value={chord.duration}
           onChange={(e) => onPatch({ duration: Number(e.target.value) })}
-          className="w-32"
+          className="w-32 font-mono"
         />
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={onSplit}>
-            Split
+            Split in half
           </Button>
           <Button size="sm" variant="danger" onClick={onDelete}>
             Delete
           </Button>
         </div>
+        <p className="ml-auto hidden max-w-[260px] text-[11px] leading-relaxed text-text-dim lg:block">
+          Saved corrections are global — you&apos;re fixing this song for
+          everyone.
+        </p>
       </div>
     </div>
   );

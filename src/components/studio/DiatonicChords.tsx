@@ -51,7 +51,7 @@ export function DiatonicChords({ tonic, mode, ext, current, onPick }: Props) {
               >
                 {c.numeral}
               </span>
-              <span className="text-base font-semibold leading-tight">
+              <span className="font-display text-base font-semibold leading-tight">
                 {chordSymbol(c.root, extendQuality(c.root, c.quality, tonic, mode, ext))}
               </span>
             </button>

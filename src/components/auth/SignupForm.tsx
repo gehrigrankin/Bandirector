@@ -84,7 +84,7 @@ export function SignupForm() {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
       <Button type="submit" size="lg" className="w-full" loading={loading}>
         Create account
       </Button>

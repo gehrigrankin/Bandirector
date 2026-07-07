@@ -18,21 +18,21 @@ export function ParticipantList({ participants, currentPid }: Props) {
   }
 
   return (
-    <ul className="flex flex-wrap gap-2">
+    <ul className="flex gap-1.5 overflow-x-auto">
       {participants.map((p) => {
         const isMe = p.participant_id === currentPid;
         return (
           <li
             key={p.participant_id}
             className={[
-              "rounded-full border px-3 py-1 text-xs",
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs",
               isMe
-                ? "border-accent bg-accent/10 text-accent"
-                : "border-border bg-bg text-text",
+                ? "border-jam/40 bg-jam/[0.08] text-jam"
+                : "border-line bg-bg text-text-soft",
             ].join(" ")}
           >
-            <span className="font-medium">{p.display_name}</span>
-            <span className="ml-1 text-text-muted">
+            <span className="font-semibold">{p.display_name}</span>
+            <span className={isMe ? "ml-1 text-jam/70" : "ml-1 text-text-muted"}>
               · {instrumentLabel(p.instrument)}
             </span>
           </li>

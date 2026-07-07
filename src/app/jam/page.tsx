@@ -1,58 +1,73 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
 import { JoinRoomForm } from "@/components/room/JoinRoomForm";
-import { TopNav } from "@/components/ui/TopNav";
+import { AppShell } from "@/components/ui/AppNav";
 import { JamUnavailable } from "@/components/JamUnavailable";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default function JamPage() {
   if (!isSupabaseConfigured()) return <JamUnavailable />;
   return (
-    <div className="flex min-h-dvh flex-col">
-      <TopNav />
-      <main className="flex flex-1 flex-col items-center justify-between px-6 py-10 safe-bottom">
-        <header className="w-full max-w-lg">
-          <h1 className="text-4xl font-bold tracking-tight">Jam Together</h1>
-          <p className="mt-2 text-text-muted">
+    <AppShell>
+      <div className="relative flex min-h-full flex-col items-center justify-center px-5 py-12 md:px-10">
+        <div className="pointer-events-none absolute -top-32 left-1/2 h-[400px] w-[600px] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(63,217,197,0.10),transparent_70%)]" />
+
+        <div className="text-center">
+          <h1 className="font-display text-[32px] font-bold tracking-[-0.02em] md:text-[38px]">
+            Jam Together
+          </h1>
+          <p className="mt-2 text-sm text-text-muted md:text-[15px]">
             Upload a song. Everyone plays their part.
           </p>
-        </header>
+        </div>
 
-        <section className="w-full max-w-lg space-y-8 py-10">
-          <div className="rounded-2xl border border-border bg-bg-raised p-6">
-            <h2 className="text-xl font-semibold">Join a jam</h2>
-            <p className="mt-1 text-sm text-text-muted">
+        <div className="mt-8 grid w-full max-w-[940px] gap-5 md:mt-10 md:grid-cols-2">
+          <div className="rounded-[20px] border border-line bg-bg-raised p-6 md:p-7">
+            <h2 className="font-display text-xl font-semibold">Join a jam</h2>
+            <p className="mt-1.5 text-[13px] text-text-muted">
               Enter the 6-letter room code from your host.
             </p>
-            <div className="mt-4">
+            <div className="mt-5">
               <JoinRoomForm />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-bg-raised p-6">
-            <h2 className="text-xl font-semibold">Host a jam</h2>
-            <p className="mt-1 text-sm text-text-muted">
-              Sign in to upload songs and start a room.
+          <div className="flex flex-col rounded-[20px] border border-line bg-bg-raised p-6 md:p-7">
+            <h2 className="font-display text-xl font-semibold">Host a jam</h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-text-muted">
+              Sign in to upload songs, pick what the band plays, and drive the
+              transport for everyone.
             </p>
-            <div className="mt-4 flex gap-3">
-              <Link href="/signup" className="flex-1">
-                <Button className="w-full" size="lg">
-                  Create account
-                </Button>
+            <ul className="mt-4 space-y-2 text-xs text-text-muted">
+              <li className="flex items-center gap-2.5">
+                <span className="size-[5px] rounded-full bg-jam" />
+                Chords, tempo &amp; key analyzed in your browser
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="size-[5px] rounded-full bg-jam" />
+                Synced lyrics found automatically
+              </li>
+            </ul>
+            <div className="mt-auto flex gap-2.5 pt-5">
+              <Link
+                href="/signup"
+                className="flex h-12 flex-1 items-center justify-center rounded-xl bg-jam text-sm font-semibold text-black transition-colors hover:bg-jam-soft"
+              >
+                Create account
               </Link>
-              <Link href="/login" className="flex-1">
-                <Button className="w-full" size="lg" variant="secondary">
-                  Log in
-                </Button>
+              <Link
+                href="/login"
+                className="flex h-12 flex-1 items-center justify-center rounded-xl border border-line text-sm font-semibold text-text transition-colors hover:bg-bg-higher"
+              >
+                Log in
               </Link>
             </div>
           </div>
-        </section>
+        </div>
 
-        <footer className="text-xs text-text-dim">
+        <p className="mt-9 text-xs text-text-dim">
           Upload-only. No scraping, no YouTube. Your jams stay yours.
-        </footer>
-      </main>
-    </div>
+        </p>
+      </div>
+    </AppShell>
   );
 }

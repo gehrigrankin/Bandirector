@@ -39,7 +39,7 @@ export function ProgressionBar({
             <button
               type="button"
               onClick={() => onSelect(i)}
-              className="h-11 min-w-14 pl-3 pr-2 text-base font-semibold"
+              className="h-11 min-w-14 pl-3 pr-2 font-display text-base font-semibold"
             >
               {labels[i] ?? `${step.root}`}
             </button>

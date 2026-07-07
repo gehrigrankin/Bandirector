@@ -22,16 +22,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            "h-11 w-full rounded-xl border border-border bg-bg-raised px-4 text-base",
+            "h-11 w-full rounded-xl border border-line bg-bg-input px-4 text-base",
             "placeholder:text-text-dim",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-            error && "border-red-500",
+            error && "border-danger",
             className,
           )}
           {...rest}
         />
         {error ? (
-          <span className="mt-1 block text-xs text-red-400">{error}</span>
+          <span className="mt-1 block text-xs text-danger">{error}</span>
         ) : null}
       </label>
     );

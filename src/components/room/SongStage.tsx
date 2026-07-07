@@ -73,11 +73,12 @@ export function SongStage({ song, playback, instrument, style, audioRef }: Props
         />
       </div>
 
-      <div className="border-t border-border bg-bg-raised">
+      <div className="border-t border-line-soft bg-[#0d0d11]">
         <ChordTimeline
           analysis={song.analysis_json}
           positionMs={positionMs}
           compact
+          accent="jam"
         />
       </div>
     </div>

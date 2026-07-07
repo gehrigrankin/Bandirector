@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Play, Square, SkipBack, Volume2 } from "lucide-react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
 import { getInstrument, type InstrumentId } from "@/lib/audio/instruments";
 import {
@@ -226,6 +227,13 @@ export function StudioApp() {
     setIsPlaying(false);
   }, [engine]);
 
+  const handleRestart = useCallback(async () => {
+    engine.stop();
+    await handlePlay();
+  }, [engine, handlePlay]);
+
+  const feelLabel = swing < 0.05 ? "Straight" : swing < 0.35 ? "Laid-back" : "Swing";
+
   const selectInstrument = useCallback((id: InstrumentId) => {
     setSelection((s) => ({ ...s, instrumentId: id, ...instrumentDefaults(id) }));
   }, []);
@@ -363,138 +371,289 @@ export function StudioApp() {
     setTracks((ts) => ts.filter((t) => t.id !== id));
   }, []);
 
+  // Shared instances of the core editors, reused across desktop panels + mobile stack.
+  const progressionBlock = (
+    <ProgressionBar
+      progression={progression}
+      labels={progressionLabels}
+      editIndex={editIndex}
+      onSelect={setEditIndex}
+      onAdd={addStep}
+      onRemove={removeStep}
+    />
+  );
+  const diatonicBlock = (
+    <DiatonicChords
+      tonic={tonic}
+      mode={mode}
+      ext={chordQuality}
+      current={step}
+      onPick={(root, quality) => setStep({ root, quality })}
+    />
+  );
+  const chordColorBlock = keyboardSelected ? (
+    <ChordColor
+      value={chordQuality}
+      onChange={setChordQuality}
+      stepExt={step.ext}
+      onStepExt={(ext) => setStep({ ext })}
+    />
+  ) : null;
+  const moreChordsBlock = (
+    <section>
+      <button
+        type="button"
+        onClick={() => setShowAllChords((v) => !v)}
+        className="text-sm font-medium text-accent hover:text-accent-soft"
+      >
+        {showAllChords ? "Hide other chords" : "More chords (any key)"}
+      </button>
+      {showAllChords && (
+        <div className="mt-3">
+          <ChordGrid
+            root={step.root}
+            quality={step.quality}
+            onRoot={(root) => setStep({ root })}
+            onQuality={(quality) => setStep({ quality })}
+          />
+        </div>
+      )}
+    </section>
+  );
+  const sequencerBlock = (
+    <StepSequencer
+      instrumentId={selection.instrumentId}
+      pattern={selection.pattern}
+      playStep={playStep}
+      onToggleStep={toggleStep}
+      onToggleDrum={toggleDrum}
+      onArticulation={setArticulation}
+      onPreset={applyPreset}
+      onClear={clearPattern}
+      onLeftHand={(v) => setComp({ leftHand: v })}
+      onRightHand={(v) => setComp({ rightHand: v })}
+      onVoicing={(v) => setComp({ voicing: v })}
+    />
+  );
+  const soundBlock = (
+    <div className="grid gap-x-4 gap-y-1 rounded-2xl border border-line bg-bg-raised p-4 sm:grid-cols-2 md:grid-cols-1">
+      <Slider
+        label="Note Length"
+        value={selection.noteLength}
+        display={lengthLabel(selection.noteLength)}
+        min={0.3}
+        max={2}
+        onChange={setSelNoteLength}
+      />
+      <Slider
+        label="Reverb"
+        value={selection.reverb}
+        display={reverbLabel(selection.reverb)}
+        min={0}
+        max={1}
+        onChange={setSelReverb}
+      />
+    </div>
+  );
+  const feelBlock = (
+    <FeelControls
+      swing={swing}
+      humanize={humanize}
+      onSwing={setSwing}
+      onHumanize={setHumanize}
+    />
+  );
+  const loopBlock = (
+    <LoopPad
+      selection={selection}
+      chords={progressionLabels.join(" · ")}
+      barCount={progression.length}
+      isPlaying={isPlaying}
+      onLock={lock}
+    />
+  );
+  const layersBlock = (
+    <TrackRack
+      tracks={tracks}
+      onMute={(id, muted) => updateTrack(id, { muted })}
+      onSolo={(id, solo) => updateTrack(id, { solo })}
+      onVolume={(id, volume) => updateTrack(id, { volume })}
+      onNoteLength={(id, noteLength) => updateTrack(id, { noteLength })}
+      onReverb={(id, reverb) => updateTrack(id, { reverb })}
+      onRemove={removeTrack}
+    />
+  );
+
+  const railLabel = "text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim";
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4">
-        <div className="mx-auto max-w-3xl space-y-6">
-          <InstrumentPicker value={selection.instrumentId} onSelect={selectInstrument} />
+    <div className="flex min-h-0 flex-1 flex-col bg-bg">
+      {/* ── Desktop transport toolbar ── */}
+      <div className="hidden h-16 flex-shrink-0 items-center gap-4 border-b border-line-soft px-5 md:flex">
+        <div>
+          <div className={railLabel}>Songwriter Studio</div>
+          <div className="mt-0.5 font-display text-base font-semibold">
+            Untitled loop
+          </div>
+        </div>
+        <div className="flex-1" />
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleRestart}
+            aria-label="Restart"
+            className="flex size-9 items-center justify-center rounded-full border border-line text-text-muted hover:text-text"
+          >
+            <SkipBack className="size-[15px]" fill="currentColor" />
+          </button>
+          <button
+            type="button"
+            onClick={isPlaying ? handleStop : handlePlay}
+            aria-label={isPlaying ? "Stop" : "Play"}
+            className="flex size-[46px] items-center justify-center rounded-full bg-accent text-black shadow-glow-accent"
+          >
+            {isPlaying ? (
+              <Square className="size-[18px]" fill="currentColor" />
+            ) : (
+              <Play className="size-[18px]" fill="currentColor" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleStop}
+            aria-label="Stop"
+            className="flex size-9 items-center justify-center rounded-full border border-line text-text-muted hover:text-text"
+          >
+            <Square className="size-[13px]" fill="currentColor" />
+          </button>
+        </div>
+        <div className="h-7 w-px bg-line-soft" />
+        <div className="flex items-center gap-3">
+          <div>
+            <div className="text-[10px] tracking-[0.12em] text-text-dim">BPM</div>
+            <div className="font-mono text-lg font-semibold leading-tight text-accent">
+              {bpm}
+            </div>
+          </div>
+          <input
+            type="range"
+            min={60}
+            max={180}
+            step={1}
+            value={bpm}
+            aria-label="Tempo (BPM)"
+            onChange={(e) => setBpm(Number(e.target.value))}
+            className="h-4 w-28 accent-accent"
+          />
+          <span className="rounded-full border border-line px-2.5 py-1 text-[11px] text-text-muted">
+            Feel · {feelLabel}
+          </span>
+        </div>
+        <div className="h-7 w-px bg-line-soft" />
+        <div className="flex items-center gap-2">
+          <Volume2 className="size-[18px] text-text-muted" />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={masterVolume}
+            aria-label="Master volume"
+            onChange={(e) => setMasterVolume(Number(e.target.value))}
+            className="h-4 w-24 accent-accent"
+          />
+        </div>
+      </div>
 
-          <KeyBar tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+      {/* ── Desktop three-panel ── */}
+      <div className="hidden min-h-0 flex-1 md:flex">
+        {/* left: instruments + this part's sound */}
+        <aside className="scrollbar-thin flex w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r border-line-soft p-3">
+          <div>
+            <div className={`${railLabel} px-2`}>Instrument</div>
+            <div className="mt-2">
+              <InstrumentPicker
+                value={selection.instrumentId}
+                onSelect={selectInstrument}
+                orientation="list"
+              />
+            </div>
+          </div>
+          <div className="mt-auto flex flex-col gap-3 border-t border-line-soft pt-3">
+            <div className={`${railLabel} px-2`}>This part&apos;s sound</div>
+            {soundBlock}
+            {feelBlock}
+          </div>
+        </aside>
 
+        {/* center: harmony + sequencer */}
+        <div className="scrollbar-thin flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-text-muted">Progression</h2>
-            <ProgressionBar
-              progression={progression}
-              labels={progressionLabels}
-              editIndex={editIndex}
-              onSelect={setEditIndex}
-              onAdd={addStep}
-              onRemove={removeStep}
-            />
+            <div className="mb-2 flex flex-wrap items-center gap-3">
+              <h2 className={railLabel}>Progression</h2>
+              <KeyBar tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+            </div>
+            {progressionBlock}
+            <div className="mt-3 space-y-2">
+              <StylePresets onApply={applyStyle} />
+              <Suggestions onApply={applyTemplate} />
+            </div>
+          </section>
+          {diatonicBlock}
+          {chordColorBlock}
+          {moreChordsBlock}
+          {sequencerBlock}
+        </div>
+
+        {/* right: loop + layers */}
+        <aside className="scrollbar-thin flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
+          {loopBlock}
+          {layersBlock}
+        </aside>
+      </div>
+
+      {/* ── Mobile stacked ── */}
+      <div className="flex min-h-0 flex-1 flex-col md:hidden">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pb-6 pt-4">
+          <InstrumentPicker
+            value={selection.instrumentId}
+            onSelect={selectInstrument}
+          />
+          <KeyBar tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-text-muted">
+              Progression
+            </h2>
+            {progressionBlock}
             <div className="mt-2 space-y-2">
               <StylePresets onApply={applyStyle} />
               <Suggestions onApply={applyTemplate} />
             </div>
           </section>
-
-          <DiatonicChords
-            tonic={tonic}
-            mode={mode}
-            ext={chordQuality}
-            current={step}
-            onPick={(root, quality) => setStep({ root, quality })}
-          />
-
-          {keyboardSelected && (
-            <ChordColor
-              value={chordQuality}
-              onChange={setChordQuality}
-              stepExt={step.ext}
-              onStepExt={(ext) => setStep({ ext })}
-            />
-          )}
-
-          <section>
-            <button
-              type="button"
-              onClick={() => setShowAllChords((v) => !v)}
-              className="text-sm font-medium text-text-muted hover:text-text"
-            >
-              {showAllChords ? "Hide other chords" : "More chords (any key)"}
-            </button>
-            {showAllChords && (
-              <div className="mt-3">
-                <ChordGrid
-                  root={step.root}
-                  quality={step.quality}
-                  onRoot={(root) => setStep({ root })}
-                  onQuality={(quality) => setStep({ quality })}
-                />
-              </div>
-            )}
-          </section>
-          <StepSequencer
-            instrumentId={selection.instrumentId}
-            pattern={selection.pattern}
-            playStep={playStep}
-            onToggleStep={toggleStep}
-            onToggleDrum={toggleDrum}
-            onArticulation={setArticulation}
-            onPreset={applyPreset}
-            onClear={clearPattern}
-            onLeftHand={(v) => setComp({ leftHand: v })}
-            onRightHand={(v) => setComp({ rightHand: v })}
-            onVoicing={(v) => setComp({ voicing: v })}
-          />
-
+          {diatonicBlock}
+          {chordColorBlock}
+          {moreChordsBlock}
+          {sequencerBlock}
           <section>
             <h2 className="mb-2 text-sm font-semibold text-text-muted">Sound</h2>
-            <div className="grid gap-x-4 gap-y-1 rounded-2xl border border-border bg-bg-raised p-4 sm:grid-cols-2">
-              <Slider
-                label="Note Length"
-                value={selection.noteLength}
-                display={lengthLabel(selection.noteLength)}
-                min={0.3}
-                max={2}
-                onChange={setSelNoteLength}
-              />
-              <Slider
-                label="Reverb"
-                value={selection.reverb}
-                display={reverbLabel(selection.reverb)}
-                min={0}
-                max={1}
-                onChange={setSelReverb}
-              />
-            </div>
+            {soundBlock}
             <p className="mt-1 text-xs text-text-dim">
               Applies to this part — each locked layer keeps its own.
             </p>
           </section>
-
-          <FeelControls
-            swing={swing}
-            humanize={humanize}
-            onSwing={setSwing}
-            onHumanize={setHumanize}
-          />
-          <LoopPad
-            selection={selection}
-            chords={progressionLabels.join(" · ")}
-            barCount={progression.length}
-            isPlaying={isPlaying}
-            onLock={lock}
-          />
-          <TrackRack
-            tracks={tracks}
-            onMute={(id, muted) => updateTrack(id, { muted })}
-            onSolo={(id, solo) => updateTrack(id, { solo })}
-            onVolume={(id, volume) => updateTrack(id, { volume })}
-            onNoteLength={(id, noteLength) => updateTrack(id, { noteLength })}
-            onReverb={(id, reverb) => updateTrack(id, { reverb })}
-            onRemove={removeTrack}
-          />
+          {feelBlock}
+          {loopBlock}
+          {layersBlock}
         </div>
+        <TransportBar
+          isPlaying={isPlaying}
+          bpm={bpm}
+          masterVolume={masterVolume}
+          onToggle={isPlaying ? handleStop : handlePlay}
+          onBpm={setBpm}
+          onMasterVolume={setMasterVolume}
+        />
       </div>
-
-      <TransportBar
-        isPlaying={isPlaying}
-        bpm={bpm}
-        masterVolume={masterVolume}
-        onToggle={isPlaying ? handleStop : handlePlay}
-        onBpm={setBpm}
-        onMasterVolume={setMasterVolume}
-      />
     </div>
   );
 }

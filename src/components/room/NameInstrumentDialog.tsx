@@ -33,16 +33,17 @@ export function NameInstrumentDialog({ initialName, onSubmit, roomCode }: Props)
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-6 py-10 safe-top safe-bottom">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-6 py-10 safe-top safe-bottom">
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-[360px] w-[500px] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(63,217,197,0.10),transparent_70%)]" />
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-bg-raised p-6"
+        className="w-full max-w-md space-y-4 rounded-[18px] border border-line bg-bg-raised p-6"
       >
         <div>
-          <h1 className="text-xl font-bold">Join room</h1>
+          <h1 className="font-display text-xl font-bold">Join room</h1>
           <p className="mt-1 text-sm text-text-muted">
             You&apos;re joining{" "}
-            <span className="font-mono tracking-[0.3em] text-accent">
+            <span className="font-mono tracking-[0.3em] text-jam">
               {roomCode}
             </span>
           </p>
@@ -87,7 +88,13 @@ export function NameInstrumentDialog({ initialName, onSubmit, roomCode }: Props)
           </Select>
         ) : null}
 
-        <Button type="submit" size="lg" className="w-full" loading={submitting}>
+        <Button
+          type="submit"
+          variant="jam"
+          size="lg"
+          className="w-full"
+          loading={submitting}
+        >
           Join jam
         </Button>
       </form>

@@ -21,7 +21,9 @@ export function LoopPad({ selection, chords, barCount, isPlaying, onLock }: Prop
     <section className="rounded-2xl border border-border bg-bg-raised p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-2xl font-bold tracking-tight">{chords}</div>
+          <div className="truncate font-display text-2xl font-semibold tracking-tight">
+            {chords}
+          </div>
           <div className="mt-1 truncate text-sm text-text-muted">
             {def.label} · {patternSummary(selection.pattern)} ·{" "}
             {barCount === 1 ? "1 bar" : `${barCount} bars`}
