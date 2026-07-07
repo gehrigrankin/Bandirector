@@ -10,6 +10,8 @@ interface Props {
   compact?: boolean;
   onSeek?: (positionMs: number) => void;
   showPlayhead?: boolean;
+  /** Section accent — amber Studio (default) or teal Jam. */
+  accent?: "accent" | "jam";
 }
 
 const PX_PER_SECOND = 60;
@@ -20,7 +22,13 @@ export function ChordTimeline({
   compact,
   onSeek,
   showPlayhead = true,
+  accent = "accent",
 }: Props) {
+  const verifiedClass =
+    accent === "jam"
+      ? "border-jam bg-jam/20 text-jam"
+      : "border-accent bg-accent/20 text-accent";
+  const playheadClass = accent === "jam" ? "bg-jam" : "bg-accent";
   const containerRef = useRef<HTMLDivElement>(null);
 
   const totalSec = useMemo(() => {
@@ -84,10 +92,8 @@ export function ChordTimeline({
           <div
             key={i}
             className={cn(
-              "absolute top-2 flex items-center justify-center rounded-md border text-center text-sm font-semibold",
-              c.verified
-                ? "border-accent bg-accent/20 text-accent"
-                : "border-border bg-bg text-text",
+              "absolute top-2 flex items-center justify-center rounded-md border text-center font-display text-sm font-semibold",
+              c.verified ? verifiedClass : "border-line bg-bg-card text-text",
             )}
             style={{
               left: c.time * PX_PER_SECOND,
@@ -112,7 +118,7 @@ export function ChordTimeline({
 
         {showPlayhead ? (
           <div
-            className="absolute top-0 z-10 w-0.5 bg-accent"
+            className={cn("absolute top-0 z-10 w-0.5", playheadClass)}
             style={{
               left: positionSec * PX_PER_SECOND,
               height,

@@ -66,8 +66,8 @@ export function HostControls({
   }
 
   return (
-    <div className="border-t border-border bg-bg-raised/90 backdrop-blur">
-      <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-3 px-4 py-3">
+    <div className="border-t border-line-soft bg-[#0d0d11]/90 backdrop-blur safe-bottom">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3">
         <Button
           size="md"
           variant="secondary"
@@ -83,7 +83,7 @@ export function HostControls({
             <button
               type="button"
               onClick={() => onSeek(0)}
-              className="rounded-full border border-border p-2 hover:bg-bg-higher"
+              className="rounded-full border border-line p-2 text-text-muted hover:bg-bg-higher"
               aria-label="Restart"
             >
               <SkipBack className="size-4" />
@@ -92,7 +92,7 @@ export function HostControls({
               <button
                 type="button"
                 onClick={onPause}
-                className="rounded-full bg-accent p-3 text-black hover:bg-accent-soft"
+                className="rounded-full bg-jam p-3 text-black shadow-glow-jam hover:bg-jam-soft"
                 aria-label="Pause"
               >
                 <Pause className="size-5" />
@@ -101,16 +101,17 @@ export function HostControls({
               <button
                 type="button"
                 onClick={onPlay}
-                className="rounded-full bg-accent p-3 text-black hover:bg-accent-soft"
+                className="rounded-full bg-jam p-3 text-black shadow-glow-jam hover:bg-jam-soft"
                 aria-label="Play"
               >
                 <Play className="size-5" />
               </button>
             )}
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">{song.title}</div>
+              <div className="truncate text-sm font-semibold">{song.title}</div>
               <div className="text-xs text-text-muted">
-                {song.artist} · {formatTime(positionMs)}
+                {song.artist} ·{" "}
+                <span className="font-mono">{formatTime(positionMs)}</span>
               </div>
             </div>
             <Link href={`/songs/${song.id}/edit`} aria-label="Edit chords">
@@ -128,7 +129,7 @@ export function HostControls({
 
       {open ? (
         <div className="fixed inset-0 z-40 flex items-end bg-black/70">
-          <div className="w-full rounded-t-2xl bg-bg-raised p-4">
+          <div className="mx-auto w-full max-w-2xl rounded-t-2xl border border-line-soft bg-bg-raised p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Pick a song</h2>
               <button
@@ -143,13 +144,13 @@ export function HostControls({
               {songs.length === 0 ? (
                 <p className="py-8 text-center text-sm text-text-muted">
                   No songs yet.{" "}
-                  <Link href="/songs/upload" className="text-accent">
+                  <Link href="/songs/upload" className="text-jam">
                     Upload one
                   </Link>
                   .
                 </p>
               ) : (
-                <ul className="divide-y divide-border">
+                <ul className="divide-y divide-line-soft">
                   {songs.map((s) => (
                     <li key={s.id}>
                       <button
@@ -165,15 +166,15 @@ export function HostControls({
                             {s.bpm ? ` · ${Math.round(Number(s.bpm))} BPM` : ""}
                           </div>
                         </div>
-                        <Play className="size-4 text-accent" />
+                        <Play className="size-4 text-jam" />
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            <div className="mt-3 border-t border-border pt-3 text-center">
-              <Link href="/songs/upload" className="text-sm text-accent">
+            <div className="mt-3 border-t border-line-soft pt-3 text-center">
+              <Link href="/songs/upload" className="text-sm text-jam">
                 Upload a new song
               </Link>
             </div>

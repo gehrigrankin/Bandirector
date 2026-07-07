@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Music4 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -107,52 +108,49 @@ export function UploadForm({ userId }: Props) {
     }
   }
 
+  const busy = stage !== "idle" && stage !== "error" && stage !== "done";
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-text-muted">
-          MP3 file
-        </label>
-        <div
-          className="mt-1.5 flex items-center justify-center rounded-xl border-2 border-dashed border-border bg-bg p-6 text-center"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const f = e.dataTransfer.files?.[0];
-            if (f) setFile(f);
-          }}
-        >
-          <div>
-            {file ? (
-              <div className="text-sm">
-                <div className="font-medium">{file.name}</div>
-                <div className="text-text-muted">
-                  {(file.size / 1024 / 1024).toFixed(1)} MB
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-text-muted">
-                Drop an MP3 here, or click to pick one.
-              </p>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="mt-3"
-              onClick={() => fileRef.current?.click()}
-            >
-              Choose file
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="audio/mpeg,audio/mp3,audio/*"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </div>
-        </div>
+      <div
+        className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-[#2e2e38] bg-bg-card p-6 text-center transition-colors hover:border-line"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const f = e.dataTransfer.files?.[0];
+          if (f) setFile(f);
+        }}
+        onClick={() => fileRef.current?.click()}
+        role="button"
+        tabIndex={0}
+      >
+        <span className="flex size-10 items-center justify-center rounded-[11px] bg-accent/[0.12] text-accent">
+          <Music4 className="size-[18px]" strokeWidth={1.8} />
+        </span>
+        {file ? (
+          <>
+            <div className="text-sm font-semibold">{file.name}</div>
+            <div className="font-mono text-[11px] text-text-muted">
+              {(file.size / 1024 / 1024).toFixed(1)} MB · MP3
+            </div>
+            <span className="text-xs font-medium text-accent">Replace file</span>
+          </>
+        ) : (
+          <>
+            <div className="text-sm font-semibold">Drop an MP3 here</div>
+            <div className="text-xs text-text-muted">
+              or click to pick one — MP3 only
+            </div>
+          </>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="audio/mpeg,audio/mp3,audio/*"
+          className="hidden"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onClick={(e) => e.stopPropagation()}
+        />
       </div>
 
       <Input
@@ -168,28 +166,39 @@ export function UploadForm({ userId }: Props) {
         onChange={(e) => setArtist(e.target.value)}
       />
 
-      {stage !== "idle" && stage !== "error" ? (
-        <div className="space-y-2">
-          <div className="h-2 overflow-hidden rounded-full bg-bg">
+      {busy ? (
+        <div className="rounded-2xl border border-line bg-bg-raised p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-accent">
+              {progressLabel || "Analyzing chords & tempo…"}
+            </span>
+            <span className="font-mono text-xs text-text-muted">
+              {progress}%
+            </span>
+          </div>
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line-soft">
             <div
-              className="h-full bg-accent transition-all"
+              className="h-full rounded-full bg-[linear-gradient(90deg,#f5a524,#ffc252)] transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-text-muted">{progressLabel}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-text-dim">
+            Runs once per song, then it&apos;s saved forever. Lyrics are matched
+            in the background.
+          </p>
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
 
       <Button
         type="submit"
         size="lg"
         className="w-full"
-        loading={stage !== "idle" && stage !== "error" && stage !== "done"}
+        loading={busy}
         disabled={!file || !title || !artist}
       >
-        Upload & analyze
+        {busy ? "Uploading & analyzing…" : "Upload & analyze"}
       </Button>
     </form>
   );
