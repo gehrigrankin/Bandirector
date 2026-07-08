@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Play, Square, SkipBack, Volume2 } from "lucide-react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
-import { getInstrument, type InstrumentId } from "@/lib/audio/instruments";
+import {
+  getInstrument,
+  INSTRUMENTS,
+  type InstrumentId,
+} from "@/lib/audio/instruments";
 import {
   STEP_COUNT,
   clonePattern,
@@ -20,8 +24,10 @@ import {
 } from "@/lib/audio/patterns";
 import {
   chordIntervals,
+  chordNoteNames,
   chordSymbol,
   chordToMidi,
+  diatonicChords,
   extendQuality,
   noteToSemitone,
   progressionFromDegrees,
@@ -30,22 +36,97 @@ import {
 } from "@/lib/music/chord";
 import type { Voicing } from "@/lib/music/voicing";
 import type { ChordStep, Selection, Track } from "@/components/studio/types";
+import { patternSummary } from "@/lib/audio/patterns";
 import { InstrumentPicker } from "@/components/studio/InstrumentPicker";
-import { KeyBar } from "@/components/studio/KeyBar";
-import { ProgressionBar } from "@/components/studio/ProgressionBar";
+import { KeySelect } from "@/components/studio/KeySelect";
 import { Suggestions } from "@/components/studio/Suggestions";
 import { StylePresets } from "@/components/studio/StylePresets";
 import { DiatonicChords } from "@/components/studio/DiatonicChords";
-import { ChordColor } from "@/components/studio/ChordColor";
 import { ChordGrid } from "@/components/studio/ChordGrid";
 import { StepSequencer } from "@/components/studio/StepSequencer";
 import { Slider, lengthLabel, reverbLabel } from "@/components/studio/Slider";
-import { FeelControls } from "@/components/studio/FeelControls";
-import { LoopPad } from "@/components/studio/LoopPad";
-import { TrackRack } from "@/components/studio/TrackRack";
+import {
+  ProgressionCards,
+  type ProgressionCard,
+} from "@/components/studio/ProgressionCards";
+import { GrooveCards, type GrooveOption } from "@/components/studio/GrooveCards";
+import { HandsKeyboard } from "@/components/studio/HandsKeyboard";
 import { TransportBar } from "@/components/studio/TransportBar";
+import { Lock, X } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 
 const PREVIEW_VOLUME = 0.85;
+
+// ── Groove card metadata ─────────────────────────────────────────────────────
+// Keyboard right-hand grooves shown as visual cards (id → copy + rhythm glyph).
+const RH_GROOVE_ORDER = [
+  "neosoul",
+  "block",
+  "arpeggio",
+  "charleston",
+  "comp",
+  "broken",
+] as const;
+const RH_GROOVE_META: Record<string, { name: string; desc: string; glyph: number[] }> = {
+  neosoul: { name: "Neo-soul", desc: "Lush offbeat comp", glyph: [1, 0.1, 0.1, 0.8, 0.1, 1, 0.1, 0.6] },
+  block: { name: "Block", desc: "Chords on the beat", glyph: [1, 0.1, 1, 0.1, 1, 0.1, 1, 0.1] },
+  arpeggio: { name: "Arpeggio", desc: "Flowing single notes", glyph: [0.5, 0.7, 0.9, 1, 0.5, 0.7, 0.9, 1] },
+  charleston: { name: "Charleston", desc: "Jazz push on the &", glyph: [1, 0.1, 0.1, 0.8, 0.1, 0.1, 0.1, 0.1] },
+  comp: { name: "Comp", desc: "Steady mid-bar hits", glyph: [1, 0.1, 0.1, 0.7, 0.1, 0.1, 1, 0.1] },
+  broken: { name: "Broken", desc: "Gently rolled chords", glyph: [0.6, 0.9, 0.4, 0.9, 0.6, 0.9, 0.4, 0.9] },
+};
+
+// Short descriptions for melodic / drum presets.
+const PRESET_DESC: Record<string, string> = {
+  down8: "Steady eighth strums",
+  pop: "Syncopated pop feel",
+  quarters: "One per beat",
+  arp: "Rolled single notes",
+  ballad: "Slow held chords",
+  root4: "Root on every beat",
+  root8: "Driving eighth roots",
+  oct: "Root + octave",
+  sync: "Off-beat pushes",
+  block4: "Chords on the beat",
+  offbeat: "Off-beat stabs",
+  pad: "One sustained chord",
+  hold: "One long swell",
+  stabs: "Short accents",
+  swell: "Gentle rises",
+  rock: "Kick 1&3, snare 2&4",
+  funk: "Ghosted, busy kick",
+  halftime: "Wide, heavy backbeat",
+  fourfloor: "Kick every beat",
+  latin: "Syncopated clave",
+};
+
+/** 8-step glyph from a melodic/drum pattern's density. */
+function glyphFromPattern(p: Pattern): number[] {
+  const out: number[] = [];
+  if (p.kind === "melodic") {
+    for (let i = 0; i < 8; i++) out.push(p.hits[i * 2] || p.hits[i * 2 + 1] ? 1 : 0.1);
+  } else if (p.kind === "drums") {
+    const rows = Object.values(p.rows);
+    for (let i = 0; i < 8; i++) {
+      const on = rows.reduce((n, r) => n + (r[i * 2] || r[i * 2 + 1] ? 1 : 0), 0);
+      out.push(Math.min(1, 0.1 + on * 0.3));
+    }
+  }
+  return out;
+}
+
+function samePattern(a: Pattern, b: Pattern): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "melodic" && b.kind === "melodic")
+    return a.articulation === b.articulation && a.hits.join("") === b.hits.join("");
+  if (a.kind === "drums" && b.kind === "drums")
+    return Object.keys(a.rows).every(
+      (k) => a.rows[k as DrumVoice].join("") === b.rows[k as DrumVoice].join(""),
+    );
+  return false;
+}
+
+const EXT_CYCLE: (ChordExt | undefined)[] = [undefined, "triad", "7th", "9th"];
 
 /** Shared harmony context the scheduler reads to resolve chord colour. */
 interface RenderCtx {
@@ -122,6 +203,10 @@ export function StudioApp() {
   const [tonic, setTonic] = useState("C");
   const [mode, setMode] = useState<Mode>("major");
   const [showAllChords, setShowAllChords] = useState(false);
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [mobileStep, setMobileStep] = useState<"chords" | "groove" | "sound">(
+    "chords",
+  );
 
   // Global keyboard chord colour: diatonic triads → 7ths → 9ths.
   const [chordQuality, setChordQuality] = useState<ChordExt>("triad");
@@ -371,45 +456,114 @@ export function StudioApp() {
     setTracks((ts) => ts.filter((t) => t.id !== id));
   }, []);
 
-  // Shared instances of the core editors, reused across desktop panels + mobile stack.
-  const progressionBlock = (
-    <ProgressionBar
-      progression={progression}
-      labels={progressionLabels}
-      editIndex={editIndex}
-      onSelect={setEditIndex}
-      onAdd={addStep}
-      onRemove={removeStep}
-    />
+  // ── Derived view data ──
+  const family = getInstrument(selection.instrumentId).family;
+  const lockedInstruments = new Set(tracks.map((t) => t.instrumentId));
+  const isComp = selection.pattern.kind === "comp";
+
+  const progressionCards: ProgressionCard[] = progression.map((s, i) => {
+    const effQ = extendQuality(s.root, s.quality, tonic, mode, s.ext ?? chordQuality);
+    const dia = diatonicChords(tonic, mode).find(
+      (d) =>
+        noteToSemitone(d.root) === noteToSemitone(s.root) && d.quality === s.quality,
+    );
+    return {
+      label: progressionLabels[i],
+      numeral: dia?.numeral ?? "—",
+      notes: chordNoteNames(s.root, effQ),
+      ext: s.ext,
+    };
+  });
+
+  const cycleColor = () => {
+    const idx = EXT_CYCLE.findIndex((e) => e === step.ext);
+    setStep({ ext: EXT_CYCLE[(idx + 1) % EXT_CYCLE.length] });
+  };
+
+  const grooveOptions: GrooveOption[] = isComp
+    ? RH_GROOVE_ORDER.map((id) => ({ id, ...RH_GROOVE_META[id] }))
+    : presetsFor(family).map((pr) => ({
+        id: pr.id,
+        name: pr.label,
+        desc: PRESET_DESC[pr.id] ?? "",
+        glyph: glyphFromPattern(pr.pattern),
+      }));
+  const selectedGrooveId =
+    selection.pattern.kind === "comp"
+      ? selection.pattern.rightHand
+      : presetsFor(family).find((pr) => samePattern(pr.pattern, selection.pattern))
+          ?.id ?? null;
+  const onSelectGroove = (id: string) => {
+    if (selection.pattern.kind === "comp")
+      setComp({ rightHand: id as RightHandPattern });
+    else applyPreset(id);
+  };
+
+  const rootPc = noteToSemitone(step.root) ?? 0;
+  const effQuality = extendQuality(step.root, step.quality, tonic, mode, step.ext ?? chordQuality);
+  const rhNotes = chordNoteNames(step.root, effQuality);
+  const chordPcs = chordIntervals(effQuality).map((i) => (rootPc + i) % 12);
+  const bassPcs = [rootPc, (rootPc + 7) % 12];
+
+  const feelValue = swing < 0.05 ? "straight" : swing < 0.35 ? "laidback" : "swing";
+  const setFeel = (f: string) =>
+    setSwing(f === "straight" ? 0 : f === "laidback" ? 0.28 : 0.5);
+
+  const railLabel = "text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim";
+  const stepBadge = (n: number) => (
+    <span className="flex size-5 items-center justify-center rounded-full bg-bg-higher text-[10px] font-semibold text-text-dim">
+      {n}
+    </span>
   );
-  const diatonicBlock = (
-    <DiatonicChords
-      tonic={tonic}
-      mode={mode}
-      ext={chordQuality}
-      current={step}
-      onPick={(root, quality) => setStep({ root, quality })}
-    />
+
+  // ── Reusable content blocks ──
+  const colorSeg = (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-text-muted">Color</span>
+      <div className="flex overflow-hidden rounded-full border border-line">
+        {(["triad", "7th", "9th"] as ChordExt[]).map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setChordQuality(c)}
+            className={cn(
+              "px-3 py-1 text-[11px] font-semibold",
+              chordQuality === c ? "bg-accent text-black" : "text-text-muted",
+            )}
+          >
+            {c === "triad" ? "Triad" : c}
+          </button>
+        ))}
+      </div>
+    </div>
   );
-  const chordColorBlock = keyboardSelected ? (
-    <ChordColor
-      value={chordQuality}
-      onChange={setChordQuality}
-      stepExt={step.ext}
-      onStepExt={(ext) => setStep({ ext })}
-    />
-  ) : null;
-  const moreChordsBlock = (
-    <section>
+
+  const tryRow = (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[11px] text-text-dim">Try</span>
+      <Suggestions onApply={applyTemplate} />
+      <StylePresets onApply={applyStyle} />
+    </div>
+  );
+
+  const diatonicRow = (
+    <div>
+      <DiatonicChords
+        tonic={tonic}
+        mode={mode}
+        ext={chordQuality}
+        current={step}
+        onPick={(root, quality) => setStep({ root, quality })}
+      />
       <button
         type="button"
         onClick={() => setShowAllChords((v) => !v)}
-        className="text-sm font-medium text-accent hover:text-accent-soft"
+        className="mt-1 text-[12px] font-medium text-accent hover:text-accent-soft"
       >
-        {showAllChords ? "Hide other chords" : "More chords (any key)"}
+        {showAllChords ? "Hide other chords" : "More chords →"}
       </button>
-      {showAllChords && (
-        <div className="mt-3">
+      {showAllChords ? (
+        <div className="mt-2">
           <ChordGrid
             root={step.root}
             quality={step.quality}
@@ -417,28 +571,103 @@ export function StudioApp() {
             onQuality={(quality) => setStep({ quality })}
           />
         </div>
+      ) : null}
+    </div>
+  );
+
+  const handsPanel = (
+    <div className="rounded-2xl border border-line-soft bg-bg-card p-4">
+      <div className={railLabel}>What your hands play</div>
+      {isComp ? (
+        <>
+          <div className="mt-3">
+            <HandsKeyboard bass={bassPcs} chord={chordPcs} width={320} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-[3px]" style={{ background: "#a76a24" }} />
+              Left hand · {step.root} octaves
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-[3px]" style={{ background: "#f5a524" }} />
+              Right hand ·{" "}
+              {selection.pattern.kind === "comp" ? selection.pattern.voicing : ""}
+            </span>
+          </div>
+          <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
+            The left hand holds the bass; the right hand comps{" "}
+            {rhNotes.slice(1, 4).join("·")} above it. Updates live as you pick a
+            groove.
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="mt-3 flex gap-1">
+            {selection.pattern.kind === "melodic"
+              ? selection.pattern.hits.map((on, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-9 flex-1 rounded-[4px] border",
+                      on ? "border-accent bg-accent/80" : "border-line bg-[#16161d]",
+                      i % 4 === 0 ? "ml-1 first:ml-0" : "",
+                    )}
+                  />
+                ))
+              : null}
+          </div>
+          <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
+            Pick a groove above, or open Customize to shape every step by hand.
+          </p>
+        </>
       )}
-    </section>
+    </div>
   );
-  const sequencerBlock = (
-    <StepSequencer
-      instrumentId={selection.instrumentId}
-      pattern={selection.pattern}
-      playStep={playStep}
-      onToggleStep={toggleStep}
-      onToggleDrum={toggleDrum}
-      onArticulation={setArticulation}
-      onPreset={applyPreset}
-      onClear={clearPattern}
-      onLeftHand={(v) => setComp({ leftHand: v })}
-      onRightHand={(v) => setComp({ rightHand: v })}
-      onVoicing={(v) => setComp({ voicing: v })}
-    />
+
+  const grooveArea = (
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
+        <GrooveCards
+          options={grooveOptions}
+          selectedId={selectedGrooveId}
+          onSelect={onSelectGroove}
+        />
+        {handsPanel}
+      </div>
+      {showCustomize ? (
+        <div className="rounded-2xl border border-line-soft bg-bg-card p-3">
+          <StepSequencer
+            instrumentId={selection.instrumentId}
+            pattern={selection.pattern}
+            playStep={playStep}
+            onToggleStep={toggleStep}
+            onToggleDrum={toggleDrum}
+            onArticulation={setArticulation}
+            onPreset={applyPreset}
+            onClear={clearPattern}
+            onLeftHand={(v) => setComp({ leftHand: v })}
+            onRightHand={(v) => setComp({ rightHand: v })}
+            onVoicing={(v) => setComp({ voicing: v })}
+          />
+        </div>
+      ) : null}
+    </div>
   );
-  const soundBlock = (
-    <div className="grid gap-x-4 gap-y-1 rounded-2xl border border-line bg-bg-raised p-4 sm:grid-cols-2 md:grid-cols-1">
+
+  const customizeToggle = (
+    <button
+      type="button"
+      onClick={() => setShowCustomize((v) => !v)}
+      className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[11px] text-text-soft hover:bg-bg-higher"
+    >
+      {showCustomize ? "Hide fine-tune" : isComp ? "Customize hands" : "Customize"}
+    </button>
+  );
+
+  const soundControls = (
+    <div className="flex flex-col gap-3">
       <Slider
-        label="Note Length"
+        label="Note length"
         value={selection.noteLength}
         display={lengthLabel(selection.noteLength)}
         min={0.3}
@@ -453,48 +682,112 @@ export function StudioApp() {
         max={1}
         onChange={setSelReverb}
       />
+      <div>
+        <div className="mb-1.5 text-xs text-text-muted">Feel</div>
+        <div className="flex overflow-hidden rounded-full border border-line">
+          {[
+            ["straight", "Straight"],
+            ["laidback", "Laid-back"],
+            ["swing", "Swing"],
+          ].map(([v, l]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setFeel(v)}
+              className={cn(
+                "flex-1 px-3 py-1.5 text-[11px] font-semibold",
+                feelValue === v ? "bg-accent text-black" : "text-text-muted",
+              )}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+      <Slider
+        label="Humanize"
+        value={humanize}
+        display={`${Math.round(humanize * 100)}%`}
+        min={0}
+        max={1}
+        onChange={setHumanize}
+      />
     </div>
   );
-  const feelBlock = (
-    <FeelControls
-      swing={swing}
-      humanize={humanize}
-      onSwing={setSwing}
-      onHumanize={setHumanize}
-    />
-  );
-  const loopBlock = (
-    <LoopPad
-      selection={selection}
-      chords={progressionLabels.join(" · ")}
-      barCount={progression.length}
-      isPlaying={isPlaying}
-      onLock={lock}
-    />
-  );
-  const layersBlock = (
-    <TrackRack
-      tracks={tracks}
-      onMute={(id, muted) => updateTrack(id, { muted })}
-      onSolo={(id, solo) => updateTrack(id, { solo })}
-      onVolume={(id, volume) => updateTrack(id, { volume })}
-      onNoteLength={(id, noteLength) => updateTrack(id, { noteLength })}
-      onReverb={(id, reverb) => updateTrack(id, { reverb })}
-      onRemove={removeTrack}
-    />
-  );
 
-  const railLabel = "text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim";
+  const layersBlock =
+    tracks.length === 0 ? (
+      <div className="rounded-2xl border border-dashed border-[#2e2e38] p-6 text-center text-[11px] leading-relaxed text-text-dim">
+        No layers yet. Locked loops stack here and play together under one
+        transport.
+      </div>
+    ) : (
+      <div className="flex flex-col gap-2">
+        {tracks.map((t) => (
+          <div key={t.id} className="rounded-xl border border-line bg-bg-raised p-3">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-semibold">
+                  {getInstrument(t.instrumentId).label}
+                </div>
+                <div className="truncate text-[11px] text-text-muted">
+                  {patternSummary(t.pattern)}
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Mute"
+                onClick={() => updateTrack(t.id, { muted: !t.muted })}
+                className={cn(
+                  "flex size-6 items-center justify-center rounded-md border text-[10px] font-bold",
+                  t.muted ? "border-accent text-accent" : "border-line text-text-muted",
+                )}
+              >
+                M
+              </button>
+              <button
+                type="button"
+                aria-label="Solo"
+                onClick={() => updateTrack(t.id, { solo: !t.solo })}
+                className={cn(
+                  "flex size-6 items-center justify-center rounded-md text-[10px] font-bold",
+                  t.solo ? "bg-accent text-black" : "border border-line text-text-muted",
+                )}
+              >
+                S
+              </button>
+              <button
+                type="button"
+                aria-label="Remove layer"
+                onClick={() => removeTrack(t.id)}
+                className="text-text-dim hover:text-danger"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+  const lockButton = (
+    <button
+      type="button"
+      onClick={lock}
+      className="flex h-12 items-center justify-center gap-2 rounded-xl bg-accent text-[15px] font-semibold text-black shadow-glow-accent"
+    >
+      <Lock className="size-[18px]" />
+      Lock loop
+    </button>
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg">
       {/* ── Desktop transport toolbar ── */}
-      <div className="hidden h-16 flex-shrink-0 items-center gap-4 border-b border-line-soft px-5 md:flex">
+      <div className="hidden h-16 flex-shrink-0 items-center gap-4 border-b border-line-soft px-5 lg:flex">
         <div>
           <div className={railLabel}>Songwriter Studio</div>
-          <div className="mt-0.5 font-display text-base font-semibold">
-            Untitled loop
-          </div>
+          <div className="mt-0.5 font-display text-base font-semibold">Untitled loop</div>
         </div>
         <div className="flex-1" />
         <div className="flex items-center gap-2.5">
@@ -531,9 +824,7 @@ export function StudioApp() {
         <div className="flex items-center gap-3">
           <div>
             <div className="text-[10px] tracking-[0.12em] text-text-dim">BPM</div>
-            <div className="font-mono text-lg font-semibold leading-tight text-accent">
-              {bpm}
-            </div>
+            <div className="font-mono text-lg font-semibold leading-tight text-accent">{bpm}</div>
           </div>
           <input
             type="range"
@@ -545,9 +836,6 @@ export function StudioApp() {
             onChange={(e) => setBpm(Number(e.target.value))}
             className="h-4 w-28 accent-accent"
           />
-          <span className="rounded-full border border-line px-2.5 py-1 text-[11px] text-text-muted">
-            Feel · {feelLabel}
-          </span>
         </div>
         <div className="h-7 w-px bg-line-soft" />
         <div className="flex items-center gap-2">
@@ -565,86 +853,202 @@ export function StudioApp() {
         </div>
       </div>
 
-      {/* ── Desktop three-panel ── */}
-      <div className="hidden min-h-0 flex-1 md:flex">
-        {/* left: instruments + this part's sound */}
-        <aside className="scrollbar-thin flex w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r border-line-soft p-3">
-          <div>
-            <div className={`${railLabel} px-2`}>Instrument</div>
-            <div className="mt-2">
-              <InstrumentPicker
-                value={selection.instrumentId}
-                onSelect={selectInstrument}
-                orientation="list"
-              />
-            </div>
-          </div>
-          <div className="mt-auto flex flex-col gap-3 border-t border-line-soft pt-3">
-            <div className={`${railLabel} px-2`}>This part&apos;s sound</div>
-            {soundBlock}
-            {feelBlock}
+      {/* ── Desktop 3-panel (3a) ── */}
+      <div className="hidden min-h-0 flex-1 lg:flex">
+        {/* instruments */}
+        <aside className="scrollbar-thin flex w-56 shrink-0 flex-col gap-2 overflow-y-auto border-r border-line-soft p-3">
+          <div className={`${railLabel} px-2`}>Instrument</div>
+          <div className="flex flex-col gap-0.5">
+            {getInstrumentRows({
+              value: selection.instrumentId,
+              locked: lockedInstruments,
+              onSelect: selectInstrument,
+            })}
           </div>
         </aside>
 
-        {/* center: harmony + sequencer */}
+        {/* center */}
         <div className="scrollbar-thin flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
-          <section>
-            <div className="mb-2 flex flex-wrap items-center gap-3">
-              <h2 className={railLabel}>Progression</h2>
-              <KeyBar tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+          <section className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {stepBadge(1)}
+              <h2 className="text-sm font-semibold">Write the progression</h2>
+              <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+              {colorSeg}
+              <div className="ml-auto">{tryRow}</div>
             </div>
-            {progressionBlock}
-            <div className="mt-3 space-y-2">
-              <StylePresets onApply={applyStyle} />
-              <Suggestions onApply={applyTemplate} />
-            </div>
+            <ProgressionCards
+              cards={progressionCards}
+              editIndex={editIndex}
+              onSelect={setEditIndex}
+              onAdd={addStep}
+              onRemove={removeStep}
+              onCycleColor={cycleColor}
+            />
+            {diatonicRow}
           </section>
-          {diatonicBlock}
-          {chordColorBlock}
-          {moreChordsBlock}
-          {sequencerBlock}
+
+          <section className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {stepBadge(2)}
+              <h2 className="text-sm font-semibold">Choose the groove</h2>
+              <span className="text-[12px] text-text-muted">
+                {getInstrument(selection.instrumentId).label}
+              </span>
+              <div className="ml-auto">{customizeToggle}</div>
+            </div>
+            {grooveArea}
+          </section>
         </div>
 
-        {/* right: loop + layers */}
-        <aside className="scrollbar-thin flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
-          {loopBlock}
-          {layersBlock}
+        {/* shape & lock */}
+        <aside className="scrollbar-thin flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
+          <div className="flex items-center gap-2">
+            {stepBadge(3)}
+            <h2 className="text-sm font-semibold">Shape &amp; lock</h2>
+          </div>
+          <div className="rounded-2xl border border-line bg-bg-raised p-4">
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-[15px] font-semibold">
+                {getInstrument(selection.instrumentId).label}
+              </span>
+              <span className="text-[11px] text-text-muted">
+                {patternSummary(selection.pattern)}
+              </span>
+            </div>
+            <div className="mt-3 flex gap-1.5 overflow-x-auto">
+              {progressionLabels.map((lab, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setEditIndex(i)}
+                  className={cn(
+                    "shrink-0 rounded-lg px-3 py-1.5 font-display text-[13px] font-semibold",
+                    i === editIndex
+                      ? "bg-accent/15 text-accent"
+                      : "border border-line text-text-muted",
+                  )}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim">
+              {progression.length} bars · in {tonic} {mode === "major" ? "major" : "minor"}
+            </div>
+            <div className="mt-4">{soundControls}</div>
+          </div>
+          {lockButton}
+          <div>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
+                Layers
+              </span>
+              <span className="font-mono text-[10px] text-text-muted">{tracks.length}</span>
+            </div>
+            {layersBlock}
+          </div>
         </aside>
       </div>
 
-      {/* ── Mobile stacked ── */}
-      <div className="flex min-h-0 flex-1 flex-col md:hidden">
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pb-6 pt-4">
-          <InstrumentPicker
-            value={selection.instrumentId}
-            onSelect={selectInstrument}
-          />
-          <KeyBar tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
-          <section>
-            <h2 className="mb-2 text-sm font-semibold text-text-muted">
-              Progression
-            </h2>
-            {progressionBlock}
-            <div className="mt-2 space-y-2">
-              <StylePresets onApply={applyStyle} />
-              <Suggestions onApply={applyTemplate} />
+      {/* ── Mobile / tablet: focus tabs (3b) ── */}
+      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+        <div className="flex flex-shrink-0 items-center gap-2 px-4 pt-4">
+          <div>
+            <div className="text-[9px] uppercase tracking-[0.12em] text-text-dim">
+              Songwriter Studio
             </div>
-          </section>
-          {diatonicBlock}
-          {chordColorBlock}
-          {moreChordsBlock}
-          {sequencerBlock}
-          <section>
-            <h2 className="mb-2 text-sm font-semibold text-text-muted">Sound</h2>
-            {soundBlock}
-            <p className="mt-1 text-xs text-text-dim">
-              Applies to this part — each locked layer keeps its own.
-            </p>
-          </section>
-          {feelBlock}
-          {loopBlock}
-          {layersBlock}
+            <div className="font-display text-[17px] font-semibold">Untitled loop</div>
+          </div>
+          <div className="ml-auto">
+            <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+          </div>
         </div>
+
+        <div className="flex-shrink-0 px-4 pt-3">
+          <ProgressionCards
+            cards={progressionCards}
+            editIndex={editIndex}
+            onSelect={setEditIndex}
+            onAdd={addStep}
+            onRemove={removeStep}
+            onCycleColor={cycleColor}
+          />
+        </div>
+
+        {/* tabs */}
+        <div className="flex flex-shrink-0 gap-1.5 px-4 pt-3">
+          {(
+            [
+              ["chords", "Chords", `${tonic} ${mode === "major" ? "Maj" : "min"}`],
+              ["groove", "Groove", isComp ? "Comp" : "Pattern"],
+              ["sound", "Sound & feel", reverbLabel(selection.reverb)],
+            ] as const
+          ).map(([id, label, sub]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setMobileStep(id)}
+              className={cn(
+                "flex-1 rounded-xl border px-3 py-2 text-left",
+                mobileStep === id
+                  ? "border-transparent bg-accent text-black"
+                  : "border-line-soft bg-bg-raised",
+              )}
+            >
+              <div className="text-[12px] font-semibold">{label}</div>
+              <div
+                className={cn(
+                  "truncate text-[10px]",
+                  mobileStep === id ? "text-black/70" : "text-text-dim",
+                )}
+              >
+                {sub}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-4">
+          {mobileStep === "chords" ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-3">{colorSeg}</div>
+              {tryRow}
+              {diatonicRow}
+            </div>
+          ) : mobileStep === "groove" ? (
+            <div className="flex flex-col gap-3">
+              <InstrumentPicker
+                value={selection.instrumentId}
+                onSelect={selectInstrument}
+              />
+              <div className="flex items-center">
+                <span className="text-[12px] text-text-muted">
+                  {getInstrument(selection.instrumentId).label} groove
+                </span>
+                <div className="ml-auto">{customizeToggle}</div>
+              </div>
+              {grooveArea}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {soundControls}
+              <div>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
+                    Layers
+                  </span>
+                  <span className="font-mono text-[10px] text-text-muted">
+                    {tracks.length}
+                  </span>
+                </div>
+                {layersBlock}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-shrink-0 px-4 pb-2">{lockButton}</div>
         <TransportBar
           isPlaying={isPlaying}
           bpm={bpm}
@@ -656,4 +1060,43 @@ export function StudioApp() {
       </div>
     </div>
   );
+}
+
+// Instrument list rows with locked / editing status tags.
+function getInstrumentRows({
+  value,
+  locked,
+  onSelect,
+}: {
+  value: InstrumentId;
+  locked: Set<InstrumentId>;
+  onSelect: (id: InstrumentId) => void;
+}) {
+  return INSTRUMENTS.map((inst) => {
+    const active = inst.id === value;
+    const isLocked = locked.has(inst.id);
+    return (
+      <button
+        key={inst.id}
+        type="button"
+        onClick={() => onSelect(inst.id)}
+        className={cn(
+          "flex h-[38px] items-center rounded-[10px] px-2.5 text-left text-sm transition-colors",
+          active
+            ? "bg-accent/[0.12] font-semibold text-accent"
+            : "text-text-soft hover:bg-bg-raised",
+        )}
+      >
+        {inst.label}
+        {active ? (
+          <span className="ml-auto text-[10px] font-medium text-accent/80">editing</span>
+        ) : isLocked ? (
+          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-ok">
+            <Lock className="size-2.5" />
+            locked
+          </span>
+        ) : null}
+      </button>
+    );
+  });
 }
