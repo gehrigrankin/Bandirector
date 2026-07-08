@@ -36,6 +36,17 @@ export function ProgressionCards({
 }: Props) {
   return (
     <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1">
+      {cards.length === 0 ? (
+        <div className="flex min-w-[220px] flex-col justify-center rounded-2xl border border-dashed border-[#2e2e38] px-4 py-3">
+          <div className="font-display text-lg font-semibold text-text-soft">
+            No chords yet
+          </div>
+          <div className="mt-0.5 text-[11.5px] leading-snug text-text-muted">
+            Tap a chord below (or +) to start your progression — build it into
+            whatever you want.
+          </div>
+        </div>
+      ) : null}
       {cards.map((c, i) => {
         const active = i === editIndex;
         return (
@@ -60,19 +71,20 @@ export function ProgressionCards({
               >
                 {c.numeral} · BAR {i + 1}
               </span>
-              {active ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCycleColor();
-                  }}
-                  className="inline-flex items-center gap-1 rounded-md border border-accent/40 px-1.5 py-0.5 text-[10px] font-medium text-accent"
-                >
-                  {c.ext ? COLOR_LABEL[c.ext] : "Auto"}
-                  <ChevronDown className="size-2.5" strokeWidth={2.5} />
-                </button>
-              ) : cards.length > 1 ? (
+              <div className="flex items-center gap-1.5">
+                {active ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCycleColor();
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-accent/40 px-1.5 py-0.5 text-[10px] font-medium text-accent"
+                  >
+                    {c.ext ? COLOR_LABEL[c.ext] : "Auto"}
+                    <ChevronDown className="size-2.5" strokeWidth={2.5} />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   aria-label={`Remove chord ${i + 1}`}
@@ -80,11 +92,14 @@ export function ProgressionCards({
                     e.stopPropagation();
                     onRemove(i);
                   }}
-                  className="text-text-dim hover:text-text"
+                  className={cn(
+                    "hover:text-text",
+                    active ? "text-accent/70" : "text-text-dim",
+                  )}
                 >
                   <X className="size-3.5" />
                 </button>
-              ) : null}
+              </div>
             </div>
             <div
               className={cn(

@@ -162,6 +162,7 @@ function buildScheduled(t: Track, progression: ChordStep[], ctx: RenderCtx): Sch
     noteLength: t.noteLength,
     reverb: t.reverb,
     getBarEvents: (barSeconds, barIndex) => {
+      if (progression.length === 0) return [];
       const chord = progression[barIndex % progression.length];
       const quality = effectiveQuality(chord, t.instrumentId, ctx);
       const intervals = chordIntervals(quality);
@@ -214,10 +215,9 @@ export function StudioApp() {
   // Global keyboard chord colour: diatonic triads → 7ths → 9ths.
   const [chordQuality, setChordQuality] = useState<ChordExt>("triad");
 
-  // The loop's chord changes (one bar per step), shared by every layer.
-  const [progression, setProgression] = useState<ChordStep[]>([
-    { root: "C", quality: "maj" },
-  ]);
+  // The loop's chord changes (one bar per step), shared by every layer. Starts
+  // empty so it's obvious the progression is yours to build.
+  const [progression, setProgression] = useState<ChordStep[]>([]);
   const [editIndex, setEditIndex] = useState(0);
 
   const [selection, setSelection] = useState<Selection>(() => ({
@@ -229,7 +229,12 @@ export function StudioApp() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const nextId = useRef(1);
 
-  const step = progression[Math.min(editIndex, progression.length - 1)];
+  const hasChords = progression.length > 0;
+  const step = hasChords
+    ? progression[Math.min(editIndex, progression.length - 1)]
+    : undefined;
+  // A safe chord for UI math (voicing/note math) when the progression is empty.
+  const activeStep: ChordStep = step ?? { root: "C", quality: "maj" };
   const keyboardSelected = isKeyboard(selection.instrumentId);
 
   // Chord names shown in the UI reflect the active colour (triad → 7th → 9th).
@@ -391,12 +396,25 @@ export function StudioApp() {
   }, [editIndex]);
   const removeStep = useCallback((index: number) => {
     setProgression((p) => {
-      if (p.length <= 1) return p;
       const next = p.filter((_, i) => i !== index);
-      setEditIndex((cur) => Math.min(cur, next.length - 1));
+      setEditIndex((cur) => Math.max(0, Math.min(cur, next.length - 1)));
       return next;
     });
   }, []);
+  // Pick a chord from the "chords in key" palette: seed the first chord when the
+  // progression is empty, otherwise replace the selected bar.
+  const pickChord = useCallback(
+    (root: string, quality: string) => {
+      setProgression((p) => {
+        if (p.length === 0) {
+          setEditIndex(0);
+          return [{ root, quality }];
+        }
+        return p.map((s, i) => (i === editIndex ? { ...s, root, quality } : s));
+      });
+    },
+    [editIndex],
+  );
   const applyTemplate = useCallback(
     (degrees: number[], ext?: ChordExt) => {
       const chords = progressionFromDegrees(tonic, mode, degrees).map((c) => ({
@@ -479,7 +497,7 @@ export function StudioApp() {
   });
 
   const cycleColor = () => {
-    const idx = EXT_CYCLE.findIndex((e) => e === step.ext);
+    const idx = EXT_CYCLE.findIndex((e) => e === activeStep.ext);
     setStep({ ext: EXT_CYCLE[(idx + 1) % EXT_CYCLE.length] });
   };
 
@@ -502,9 +520,15 @@ export function StudioApp() {
     else applyPreset(id);
   };
 
-  const rootPc = noteToSemitone(step.root) ?? 0;
-  const effQuality = extendQuality(step.root, step.quality, tonic, mode, step.ext ?? chordQuality);
-  const rhNotes = chordNoteNames(step.root, effQuality);
+  const rootPc = noteToSemitone(activeStep.root) ?? 0;
+  const effQuality = extendQuality(
+    activeStep.root,
+    activeStep.quality,
+    tonic,
+    mode,
+    activeStep.ext ?? chordQuality,
+  );
+  const rhNotes = chordNoteNames(activeStep.root, effQuality);
   const chordPcs = chordIntervals(effQuality).map((i) => (rootPc + i) % 12);
   const bassPcs = [rootPc, (rootPc + 7) % 12];
 
@@ -555,8 +579,8 @@ export function StudioApp() {
         tonic={tonic}
         mode={mode}
         ext={chordQuality}
-        current={step}
-        onPick={(root, quality) => setStep({ root, quality })}
+        current={hasChords ? activeStep : { root: "", quality: "" }}
+        onPick={pickChord}
       />
       <button
         type="button"
@@ -568,10 +592,10 @@ export function StudioApp() {
       {showAllChords ? (
         <div className="mt-2">
           <ChordGrid
-            root={step.root}
-            quality={step.quality}
-            onRoot={(root) => setStep({ root })}
-            onQuality={(quality) => setStep({ quality })}
+            root={activeStep.root}
+            quality={activeStep.quality}
+            onRoot={(root) => pickChord(root, activeStep.quality)}
+            onQuality={(quality) => pickChord(activeStep.root, quality)}
           />
         </div>
       ) : null}
@@ -581,7 +605,11 @@ export function StudioApp() {
   const handsPanel = (
     <div className="rounded-2xl border border-line-soft bg-bg-card p-4">
       <div className={railLabel}>What your hands play</div>
-      {isComp ? (
+      {!hasChords ? (
+        <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
+          Pick a chord above to see the voicing and what each hand plays.
+        </p>
+      ) : isComp ? (
         <>
           <div className="mt-3">
             <HandsKeyboard bass={bassPcs} chord={chordPcs} width={320} />
@@ -589,7 +617,7 @@ export function StudioApp() {
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-[3px]" style={{ background: "#a76a24" }} />
-              Left hand · {step.root} octaves
+              Left hand · {activeStep.root} octaves
             </span>
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-[3px]" style={{ background: "#f5a524" }} />
@@ -777,7 +805,9 @@ export function StudioApp() {
     <button
       type="button"
       onClick={lock}
-      className="flex h-12 items-center justify-center gap-2 rounded-xl bg-accent text-[15px] font-semibold text-black shadow-glow-accent"
+      disabled={!hasChords}
+      title={hasChords ? undefined : "Add a chord to your progression first"}
+      className="flex h-12 items-center justify-center gap-2 rounded-xl bg-accent text-[15px] font-semibold text-black shadow-glow-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
     >
       <Lock className="size-[18px]" />
       Lock loop
