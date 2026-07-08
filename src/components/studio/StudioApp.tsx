@@ -204,9 +204,12 @@ export function StudioApp() {
   const [mode, setMode] = useState<Mode>("major");
   const [showAllChords, setShowAllChords] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
-  const [mobileStep, setMobileStep] = useState<"chords" | "groove" | "sound">(
+  const [stepTab, setStepTab] = useState<"chords" | "groove" | "sound">(
     "chords",
   );
+  // Desktop layout: "full" = all steps in view (3a), "focus" = one step at a
+  // time with the progression pinned (3b).
+  const [viewMode, setViewMode] = useState<"full" | "focus">("full");
 
   // Global keyboard chord colour: diatonic triads → 7ths → 9ths.
   const [chordQuality, setChordQuality] = useState<ChordExt>("triad");
@@ -781,6 +784,232 @@ export function StudioApp() {
     </button>
   );
 
+  // Step tabs (shared by desktop Focus mode + mobile).
+  const focusTabsEl = (
+    <div className="flex gap-1.5">
+      {(
+        [
+          ["chords", "Chords", `${tonic} ${mode === "major" ? "Maj" : "min"} · color`],
+          ["groove", "Groove", isComp ? "Comp" : "Pattern"],
+          [
+            "sound",
+            "Sound & feel",
+            `${lengthLabel(selection.noteLength)} · ${reverbLabel(selection.reverb)}`,
+          ],
+        ] as const
+      ).map(([id, label, sub]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => setStepTab(id)}
+          className={cn(
+            "flex-1 rounded-xl border px-3 py-2 text-left",
+            stepTab === id
+              ? "border-transparent bg-accent text-black"
+              : "border-line-soft bg-bg-raised hover:bg-bg-higher",
+          )}
+        >
+          <div className="text-[12px] font-semibold">{label}</div>
+          <div
+            className={cn(
+              "truncate text-[10px]",
+              stepTab === id ? "text-black/70" : "text-text-dim",
+            )}
+          >
+            {sub}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+
+  const focusStepContent =
+    stepTab === "chords" ? (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+          {colorSeg}
+          {tryRow}
+        </div>
+        {diatonicRow}
+      </div>
+    ) : stepTab === "groove" ? (
+      <div className="flex flex-col gap-3">
+        <div className="lg:hidden">
+          <InstrumentPicker
+            value={selection.instrumentId}
+            onSelect={selectInstrument}
+          />
+        </div>
+        <div className="flex items-center">
+          <span className="text-[12px] text-text-muted">
+            {getInstrument(selection.instrumentId).label} groove
+          </span>
+          <div className="ml-auto">{customizeToggle}</div>
+        </div>
+        {grooveArea}
+      </div>
+    ) : (
+      <div className="flex flex-col gap-4">
+        {soundControls}
+        <div className="lg:hidden">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
+              Layers
+            </span>
+            <span className="font-mono text-[10px] text-text-muted">
+              {tracks.length}
+            </span>
+          </div>
+          {layersBlock}
+        </div>
+      </div>
+    );
+
+  // ── Desktop center + right, per view mode ──
+  const centerFull = (
+    <div className="scrollbar-thin flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {stepBadge(1)}
+          <h2 className="text-sm font-semibold">Write the progression</h2>
+          <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
+          {colorSeg}
+          <div className="ml-auto">{tryRow}</div>
+        </div>
+        <ProgressionCards
+          cards={progressionCards}
+          editIndex={editIndex}
+          onSelect={setEditIndex}
+          onAdd={addStep}
+          onRemove={removeStep}
+          onCycleColor={cycleColor}
+        />
+        {diatonicRow}
+      </section>
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {stepBadge(2)}
+          <h2 className="text-sm font-semibold">Choose the groove</h2>
+          <span className="text-[12px] text-text-muted">
+            {getInstrument(selection.instrumentId).label}
+          </span>
+          <div className="ml-auto">{customizeToggle}</div>
+        </div>
+        {grooveArea}
+      </section>
+    </div>
+  );
+
+  const centerFocus = (
+    <div className="scrollbar-thin flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
+      <ProgressionCards
+        cards={progressionCards}
+        editIndex={editIndex}
+        onSelect={setEditIndex}
+        onAdd={addStep}
+        onRemove={removeStep}
+        onCycleColor={cycleColor}
+      />
+      {focusTabsEl}
+      <div className="min-h-0 flex-1">{focusStepContent}</div>
+    </div>
+  );
+
+  const rightFull = (
+    <aside className="scrollbar-thin flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
+      <div className="flex items-center gap-2">
+        {stepBadge(3)}
+        <h2 className="text-sm font-semibold">Shape &amp; lock</h2>
+      </div>
+      <div className="rounded-2xl border border-line bg-bg-raised p-4">
+        <div className="flex items-baseline gap-2">
+          <span className="font-display text-[15px] font-semibold">
+            {getInstrument(selection.instrumentId).label}
+          </span>
+          <span className="text-[11px] text-text-muted">
+            {patternSummary(selection.pattern)}
+          </span>
+        </div>
+        <div className="mt-3 flex gap-1.5 overflow-x-auto">
+          {progressionLabels.map((lab, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setEditIndex(i)}
+              className={cn(
+                "shrink-0 rounded-lg px-3 py-1.5 font-display text-[13px] font-semibold",
+                i === editIndex
+                  ? "bg-accent/15 text-accent"
+                  : "border border-line text-text-muted",
+              )}
+            >
+              {lab}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim">
+          {progression.length} bars · in {tonic} {mode === "major" ? "major" : "minor"}
+        </div>
+        <div className="mt-4">{soundControls}</div>
+      </div>
+      {lockButton}
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
+            Layers
+          </span>
+          <span className="font-mono text-[10px] text-text-muted">{tracks.length}</span>
+        </div>
+        {layersBlock}
+      </div>
+    </aside>
+  );
+
+  const rightFocus = (
+    <aside className="scrollbar-thin flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
+      <div className="rounded-2xl border border-line bg-bg-raised p-4">
+        <div className="flex items-baseline gap-2">
+          <span className="font-display text-[15px] font-semibold">This loop</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim">
+            {progression.length} bars · {bpm} bpm
+          </span>
+        </div>
+        <div className="mt-3 flex gap-1.5 overflow-x-auto">
+          {progressionLabels.map((lab, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setEditIndex(i)}
+              className={cn(
+                "shrink-0 rounded-lg px-3 py-1.5 font-display text-[13px] font-semibold",
+                i === editIndex
+                  ? "bg-accent/15 text-accent"
+                  : "border border-line text-text-muted",
+              )}
+            >
+              {lab}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
+          Press <span className="font-semibold text-text">Play</span> to preview
+          this part over your locked layers.
+        </p>
+      </div>
+      {lockButton}
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
+            Layers
+          </span>
+          <span className="font-mono text-[10px] text-text-muted">{tracks.length}</span>
+        </div>
+        {layersBlock}
+      </div>
+    </aside>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg">
       {/* ── Desktop transport toolbar ── */}
@@ -788,6 +1017,21 @@ export function StudioApp() {
         <div>
           <div className={railLabel}>Songwriter Studio</div>
           <div className="mt-0.5 font-display text-base font-semibold">Untitled loop</div>
+        </div>
+        <div className="ml-4 flex items-center overflow-hidden rounded-full border border-line">
+          {(["full", "focus"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setViewMode(m)}
+              className={cn(
+                "px-3 py-1 text-[11px] font-semibold capitalize",
+                viewMode === m ? "bg-bg-higher text-text" : "text-text-muted",
+              )}
+            >
+              {m}
+            </button>
+          ))}
         </div>
         <div className="flex-1" />
         <div className="flex items-center gap-2.5">
@@ -867,88 +1111,8 @@ export function StudioApp() {
           </div>
         </aside>
 
-        {/* center */}
-        <div className="scrollbar-thin flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {stepBadge(1)}
-              <h2 className="text-sm font-semibold">Write the progression</h2>
-              <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
-              {colorSeg}
-              <div className="ml-auto">{tryRow}</div>
-            </div>
-            <ProgressionCards
-              cards={progressionCards}
-              editIndex={editIndex}
-              onSelect={setEditIndex}
-              onAdd={addStep}
-              onRemove={removeStep}
-              onCycleColor={cycleColor}
-            />
-            {diatonicRow}
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {stepBadge(2)}
-              <h2 className="text-sm font-semibold">Choose the groove</h2>
-              <span className="text-[12px] text-text-muted">
-                {getInstrument(selection.instrumentId).label}
-              </span>
-              <div className="ml-auto">{customizeToggle}</div>
-            </div>
-            {grooveArea}
-          </section>
-        </div>
-
-        {/* shape & lock */}
-        <aside className="scrollbar-thin flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
-          <div className="flex items-center gap-2">
-            {stepBadge(3)}
-            <h2 className="text-sm font-semibold">Shape &amp; lock</h2>
-          </div>
-          <div className="rounded-2xl border border-line bg-bg-raised p-4">
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-[15px] font-semibold">
-                {getInstrument(selection.instrumentId).label}
-              </span>
-              <span className="text-[11px] text-text-muted">
-                {patternSummary(selection.pattern)}
-              </span>
-            </div>
-            <div className="mt-3 flex gap-1.5 overflow-x-auto">
-              {progressionLabels.map((lab, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setEditIndex(i)}
-                  className={cn(
-                    "shrink-0 rounded-lg px-3 py-1.5 font-display text-[13px] font-semibold",
-                    i === editIndex
-                      ? "bg-accent/15 text-accent"
-                      : "border border-line text-text-muted",
-                  )}
-                >
-                  {lab}
-                </button>
-              ))}
-            </div>
-            <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim">
-              {progression.length} bars · in {tonic} {mode === "major" ? "major" : "minor"}
-            </div>
-            <div className="mt-4">{soundControls}</div>
-          </div>
-          {lockButton}
-          <div>
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
-                Layers
-              </span>
-              <span className="font-mono text-[10px] text-text-muted">{tracks.length}</span>
-            </div>
-            {layersBlock}
-          </div>
-        </aside>
+        {viewMode === "full" ? centerFull : centerFocus}
+        {viewMode === "full" ? rightFull : rightFocus}
       </div>
 
       {/* ── Mobile / tablet: focus tabs (3b) ── */}
@@ -977,75 +1141,10 @@ export function StudioApp() {
         </div>
 
         {/* tabs */}
-        <div className="flex flex-shrink-0 gap-1.5 px-4 pt-3">
-          {(
-            [
-              ["chords", "Chords", `${tonic} ${mode === "major" ? "Maj" : "min"}`],
-              ["groove", "Groove", isComp ? "Comp" : "Pattern"],
-              ["sound", "Sound & feel", reverbLabel(selection.reverb)],
-            ] as const
-          ).map(([id, label, sub]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setMobileStep(id)}
-              className={cn(
-                "flex-1 rounded-xl border px-3 py-2 text-left",
-                mobileStep === id
-                  ? "border-transparent bg-accent text-black"
-                  : "border-line-soft bg-bg-raised",
-              )}
-            >
-              <div className="text-[12px] font-semibold">{label}</div>
-              <div
-                className={cn(
-                  "truncate text-[10px]",
-                  mobileStep === id ? "text-black/70" : "text-text-dim",
-                )}
-              >
-                {sub}
-              </div>
-            </button>
-          ))}
-        </div>
+        <div className="flex-shrink-0 px-4 pt-3">{focusTabsEl}</div>
 
         <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-4">
-          {mobileStep === "chords" ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3">{colorSeg}</div>
-              {tryRow}
-              {diatonicRow}
-            </div>
-          ) : mobileStep === "groove" ? (
-            <div className="flex flex-col gap-3">
-              <InstrumentPicker
-                value={selection.instrumentId}
-                onSelect={selectInstrument}
-              />
-              <div className="flex items-center">
-                <span className="text-[12px] text-text-muted">
-                  {getInstrument(selection.instrumentId).label} groove
-                </span>
-                <div className="ml-auto">{customizeToggle}</div>
-              </div>
-              {grooveArea}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {soundControls}
-              <div>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
-                    Layers
-                  </span>
-                  <span className="font-mono text-[10px] text-text-muted">
-                    {tracks.length}
-                  </span>
-                </div>
-                {layersBlock}
-              </div>
-            </div>
-          )}
+          {focusStepContent}
         </div>
 
         <div className="flex-shrink-0 px-4 pb-2">{lockButton}</div>
