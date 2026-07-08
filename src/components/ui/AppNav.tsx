@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Music4, Users, ListMusic, type LucideIcon } from "lucide-react";
+import {
+  Home,
+  Music4,
+  Users,
+  ListMusic,
+  Target,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 type Accent = "accent" | "jam";
@@ -33,6 +40,7 @@ const NAV: NavItem[] = [
     accent: "accent",
     match: ["/library", "/songs"],
   },
+  { href: "/learn", label: "Learn", icon: Target, accent: "accent" },
 ];
 
 function isActive(item: NavItem, pathname: string) {

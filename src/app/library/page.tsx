@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Pencil, Upload, Search } from "lucide-react";
+import { Pencil, Upload, Search, GraduationCap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/ui/AppNav";
 import { CreateRoomButton } from "@/components/room/CreateRoomButton";
@@ -130,13 +130,22 @@ export default async function LibraryPage() {
                     {s.bpm ? Math.round(Number(s.bpm)) : "—"}
                   </span>
                   <StatusBadge status={s.status} />
-                  <Link
-                    href={`/songs/${s.id}/edit`}
-                    aria-label="Edit chords"
-                    className="flex justify-end text-text-muted hover:text-text"
-                  >
-                    <Pencil className="size-[15px]" strokeWidth={1.8} />
-                  </Link>
+                  <div className="flex justify-end gap-1.5">
+                    <Link
+                      href={`/songs/${s.id}/coach`}
+                      aria-label="How to play"
+                      className="text-text-muted hover:text-jam"
+                    >
+                      <GraduationCap className="size-[16px]" strokeWidth={1.8} />
+                    </Link>
+                    <Link
+                      href={`/songs/${s.id}/edit`}
+                      aria-label="Edit chords"
+                      className="text-text-muted hover:text-text"
+                    >
+                      <Pencil className="size-[15px]" strokeWidth={1.8} />
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>
@@ -171,6 +180,13 @@ export default async function LibraryPage() {
                       </div>
                     </div>
                     <StatusBadge status={s.status} />
+                  </Link>
+                  <Link
+                    href={`/songs/${s.id}/coach`}
+                    aria-label="How to play"
+                    className="shrink-0 text-text-muted hover:text-jam"
+                  >
+                    <GraduationCap className="size-[18px]" strokeWidth={1.8} />
                   </Link>
                 </div>
               ))}

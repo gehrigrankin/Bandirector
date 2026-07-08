@@ -130,6 +130,12 @@ export function chordSymbol(root: string, qualityId: string): string {
   return `${root}${(QUALITY_BY_ID[qualityId] ?? QUALITY_BY_ID.maj).symbol}`;
 }
 
+/** The note names of a chord in order, e.g. ("A","maj9") → ["A","C#","E","G#","B"]. */
+export function chordNoteNames(root: string, qualityId: string): string[] {
+  const r = noteToSemitone(root) ?? 0;
+  return chordIntervals(qualityId).map((i) => PITCH_NAMES[(r + i) % 12]);
+}
+
 /**
  * MIDI note numbers for a chord. `octave` is the octave of the root using
  * scientific pitch notation (C4 = 60). Returns one note per chord interval.
