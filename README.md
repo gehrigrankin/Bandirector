@@ -9,6 +9,13 @@ Bandirector is a multi-part music app. The two parts shipping today:
   browser analyzes chords/tempo/key, and everyone picks their instrument + style
   and sees their part synced to a timeline.
 
+Bandirector installs as a phone app (PWA — "Add to Home Screen" / the install
+prompt) and takes **MIDI input**: plug a keyboard into your phone or computer
+(USB or Bluetooth MIDI), hit *Connect a MIDI keyboard* in the Studio, and play —
+notes sound through the selected instrument and held chords are recognized so
+you can drop them straight into the progression. Web MIDI works in Chrome/Edge
+on Android and desktop; iOS Safari doesn't support it.
+
 See [ROADMAP.md](./ROADMAP.md) for where this is going.
 
 ## Stack

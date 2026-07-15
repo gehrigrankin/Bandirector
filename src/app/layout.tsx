@@ -19,6 +19,12 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Bandirector",
   description: "Real-time jam sessions. Upload, analyze, play together.",
+  applicationName: "Bandirector",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Bandirector",
+  },
 };
 
 export const viewport: Viewport = {

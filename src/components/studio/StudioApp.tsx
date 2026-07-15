@@ -51,6 +51,7 @@ import {
 } from "@/components/studio/ProgressionCards";
 import { GrooveCards, type GrooveOption } from "@/components/studio/GrooveCards";
 import { HandsKeyboard } from "@/components/studio/HandsKeyboard";
+import { MidiPanel } from "@/components/studio/MidiPanel";
 import { TransportBar } from "@/components/studio/TransportBar";
 import { Lock, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -415,6 +416,14 @@ export function StudioApp() {
     },
     [editIndex],
   );
+  // A chord captured from a MIDI keyboard appends to the progression.
+  const addChordFromMidi = useCallback((root: string, quality: string) => {
+    setProgression((p) => {
+      const next = [...p, { root, quality }];
+      setEditIndex(next.length - 1);
+      return next;
+    });
+  }, []);
   const applyTemplate = useCallback(
     (degrees: number[], ext?: ChordExt) => {
       const chords = progressionFromDegrees(tonic, mode, degrees).map((c) => ({
@@ -599,6 +608,12 @@ export function StudioApp() {
           />
         </div>
       ) : null}
+      <div className="mt-3">
+        <MidiPanel
+          instrumentId={selection.instrumentId}
+          onAddChord={addChordFromMidi}
+        />
+      </div>
     </div>
   );
 
