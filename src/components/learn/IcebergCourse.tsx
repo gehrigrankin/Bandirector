@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   ChevronDown,
   Circle,
   Guitar,
+  HardDrive,
   Piano,
   Sparkles,
   Waves,
@@ -15,6 +16,7 @@ import type { TopicStatus } from "@/lib/types/database";
 import {
   ICEBERG,
   TRACKS,
+  isValidTopicId,
   topicsForTrack,
   trackTopicCount,
   type Tier,
@@ -57,6 +59,38 @@ const NEXT_STATUS: Record<DisplayStatus, TopicStatus | null> = {
   known: null,
 };
 
+/**
+ * Local mirror of progress, per user. Lets the page work before the
+ * learning_progress table exists; entries sync up to the DB once it does.
+ */
+function localKey(userId: string) {
+  return `bandirector.learn.${userId}`;
+}
+
+function loadLocal(userId: string): Record<string, TopicStatus> {
+  try {
+    const raw = localStorage.getItem(localKey(userId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Record<string, TopicStatus> = {};
+    for (const [id, status] of Object.entries(parsed)) {
+      if (isValidTopicId(id) && (status === "learning" || status === "known"))
+        out[id] = status;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveLocal(userId: string, progress: Record<string, TopicStatus>) {
+  try {
+    localStorage.setItem(localKey(userId), JSON.stringify(progress));
+  } catch {
+    // storage full or unavailable — nothing useful to do
+  }
+}
+
 export function IcebergCourse({
   userId,
   initialProgress,
@@ -68,18 +102,45 @@ export function IcebergCourse({
   const [progress, setProgress] =
     useState<Record<string, TopicStatus>>(initialProgress);
   const [expanded, setExpanded] = useState<string | null>(null);
+  /** false once a DB write fails (e.g. table missing) — local-only mode. */
+  const [dbOk, setDbOk] = useState(true);
 
   const supabase = useMemo(() => createClient(), []);
+
+  // Merge the local mirror in on mount, and push any local-only entries up to
+  // the DB (no-op when the table doesn't exist yet — we just flag local mode).
+  useEffect(() => {
+    const local = loadLocal(userId);
+    const localOnly = Object.entries(local).filter(
+      ([id]) => !(id in initialProgress),
+    );
+    if (localOnly.length === 0) return;
+
+    setProgress((cur) => ({ ...Object.fromEntries(localOnly), ...cur }));
+
+    void supabase
+      .from("learning_progress")
+      .upsert(
+        localOnly.map(([topic_id, status]) => ({
+          user_id: userId,
+          topic_id,
+          status,
+        })),
+      )
+      .then(({ error }) => {
+        if (error) setDbOk(false);
+      });
+  }, [userId, initialProgress, supabase]);
 
   async function cycleStatus(topic: Topic) {
     const current = statusOf(progress, topic.id);
     const next = NEXT_STATUS[current];
-    const prev = progress;
 
     const optimistic = { ...progress };
     if (next === null) delete optimistic[topic.id];
     else optimistic[topic.id] = next;
     setProgress(optimistic);
+    saveLocal(userId, optimistic);
 
     const { error } =
       next === null
@@ -95,8 +156,12 @@ export function IcebergCourse({
             updated_at: new Date().toISOString(),
           });
     if (error) {
-      console.error("Failed to save progress", error);
-      setProgress(prev);
+      // Keep the change — the local mirror has it; the DB will catch up on a
+      // future visit once the table exists.
+      console.warn("Progress saved locally only:", error.message);
+      setDbOk(false);
+    } else if (!dbOk) {
+      setDbOk(true);
     }
   }
 
@@ -158,6 +223,13 @@ export function IcebergCourse({
           Tap the circle to mark a topic: not started → learning → known. Tap a
           row for its checkpoint. Theory topics count for both instruments.
         </div>
+        {!dbOk ? (
+          <div className="flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/[0.06] px-3 py-2 text-[11px] text-accent">
+            <HardDrive className="size-3.5 flex-shrink-0" strokeWidth={1.8} />
+            Progress is saving to this device only for now — it will sync to
+            your account automatically once the database is set up.
+          </div>
+        ) : null}
       </div>
 
       {/* the iceberg */}
