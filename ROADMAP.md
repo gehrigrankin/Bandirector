@@ -38,10 +38,18 @@ A page that teaches how to play a specific song: its chords and sections, the
 part for each instrument, and a play-along mode. Bridges the Jam analysis and the
 Studio's instrument/style vocabulary.
 
-## 4. Learn / progress tracker — *future*
+## 4. Learn / progress tracker — *shipped (v1)*
 
-Track what you already know and what's next across categories — guitar, piano,
-drums, music theory, and songs learned — with suggestions for what to learn next.
+The **music iceberg** (`/learn`): a six-tier curriculum from the surface (first
+chords, note names) down to the trench (counterpoint, transcribing the masters)
+for guitar and piano, with shared music-theory topics that count for both
+tracks. Each topic has a summary and a concrete checkpoint; you mark topics
+not started → learning → known, and progress persists per user
+(`learning_progress` table).
+
+Future: drums track, per-topic drills that link into the Studio/Coach,
+automatic progress from Coach sessions and Jams, "what to learn next"
+suggestions.
 
 ---
 
@@ -50,4 +58,4 @@ drums, music theory, and songs learned — with suggestions for what to learn ne
 - Saving / exporting progressions, MIDI / audio export.
 - Song sections (verse / chorus), tempo automation.
 - Wiring Studio output into the Jam rooms.
-- The "How to play a song" and "Learn / progress tracker" parts above.
+- The "How to play a song" part above.

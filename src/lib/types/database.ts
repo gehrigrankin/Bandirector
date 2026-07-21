@@ -42,6 +42,8 @@ export interface AnalysisJson {
   version: number;
 }
 
+export type TopicStatus = "learning" | "known";
+
 export interface PlaybackState {
   playing: boolean;
   position_ms: number;
@@ -156,6 +158,24 @@ export interface Database {
         };
         Update: Partial<
           Database["public"]["Tables"]["room_participants"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      learning_progress: {
+        Row: {
+          user_id: string;
+          topic_id: string;
+          status: TopicStatus;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          topic_id: string;
+          status: TopicStatus;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["learning_progress"]["Insert"]
         >;
         Relationships: [];
       };
