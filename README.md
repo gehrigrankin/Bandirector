@@ -32,6 +32,8 @@ npm run dev
 
 Apply the schema in `supabase/migrations/0001_init.sql` to your Supabase project (SQL editor or `supabase db push`).
 
+Later migrations (`0002_…` onward) can be applied by visiting `/migrate?token=<MIGRATE_TOKEN>` — set `SUPABASE_DB_URL` and `MIGRATE_TOKEN` in the environment first (see `.env.example`).
+
 Create a public storage bucket named `songs` for MP3 uploads.
 
 ## Implementation order (from the spec)
