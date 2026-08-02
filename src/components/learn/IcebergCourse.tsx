@@ -23,6 +23,7 @@ import {
   type Topic,
   type Track,
 } from "@/lib/learning/curriculum";
+import { LESSONS } from "@/lib/learning/lessons";
 import { cn } from "@/lib/utils/cn";
 
 /** Accent color per depth — sky blue at the surface, violet in the trench. */
@@ -358,60 +359,126 @@ function TierCard({
                   ) : null}
                 </button>
 
-                <button
-                  onClick={() => onToggleExpand(topic.id)}
-                  className="min-w-0 flex-1 text-left"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        "text-[13.5px] font-semibold",
-                        status === "known" && "text-text-muted line-through decoration-ok/50",
-                      )}
-                    >
-                      {topic.title}
-                    </span>
-                    {topic.kind === "theory" ? (
-                      <span className="rounded-full border border-jam/30 bg-jam/[0.08] px-2 py-px text-[9.5px] uppercase tracking-wide text-jam">
-                        theory · shared
-                      </span>
-                    ) : null}
-                    {status === "learning" ? (
-                      <span className="rounded-full border border-accent/30 bg-accent/[0.08] px-2 py-px text-[9.5px] uppercase tracking-wide text-accent">
-                        learning
-                      </span>
-                    ) : null}
-                    <ChevronDown
-                      className={cn(
-                        "ml-auto size-3.5 flex-shrink-0 text-text-dim transition-transform",
-                        isOpen && "rotate-180",
-                      )}
-                      strokeWidth={1.8}
-                    />
-                  </div>
-                  <div className="mt-0.5 text-[12px] text-text-muted">
-                    {topic.summary}
-                  </div>
-                  {isOpen ? (
-                    <div
-                      className="mt-2 rounded-lg border border-line-soft bg-black/20 px-3 py-2 text-[12px]"
-                      style={{ borderLeft: `2px solid ${accent}` }}
-                    >
+                <div className="min-w-0 flex-1">
+                  <button
+                    onClick={() => onToggleExpand(topic.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className="font-mono text-[10px] uppercase tracking-[0.12em]"
-                        style={{ color: accent }}
+                        className={cn(
+                          "text-[13.5px] font-semibold",
+                          status === "known" && "text-text-muted line-through decoration-ok/50",
+                        )}
                       >
-                        Checkpoint
-                      </span>{" "}
-                      <span className="text-text-soft">{topic.goal}</span>
+                        {topic.title}
+                      </span>
+                      {topic.kind === "theory" ? (
+                        <span className="rounded-full border border-jam/30 bg-jam/[0.08] px-2 py-px text-[9.5px] uppercase tracking-wide text-jam">
+                          theory · shared
+                        </span>
+                      ) : null}
+                      {status === "learning" ? (
+                        <span className="rounded-full border border-accent/30 bg-accent/[0.08] px-2 py-px text-[9.5px] uppercase tracking-wide text-accent">
+                          learning
+                        </span>
+                      ) : null}
+                      <ChevronDown
+                        className={cn(
+                          "ml-auto size-3.5 flex-shrink-0 text-text-dim transition-transform",
+                          isOpen && "rotate-180",
+                        )}
+                        strokeWidth={1.8}
+                      />
                     </div>
-                  ) : null}
-                </button>
+                    <div className="mt-0.5 text-[12px] text-text-muted">
+                      {topic.summary}
+                    </div>
+                  </button>
+                  {isOpen ? <LessonPanel topic={topic} accent={accent} /> : null}
+                </div>
               </div>
             </li>
           );
         })}
       </ul>
     </section>
+  );
+}
+
+/** The actual lesson for a topic — teaching sections, practice, checkpoint. */
+function LessonPanel({ topic, accent }: { topic: Topic; accent: string }) {
+  const lesson = LESSONS[topic.id];
+  return (
+    <div
+      className="mt-2.5 flex flex-col gap-4 rounded-lg border border-line-soft bg-black/20 px-4 py-4"
+      style={{ borderLeft: `2px solid ${accent}` }}
+    >
+      {lesson ? (
+        <>
+          {lesson.intro.map((p, i) => (
+            <p
+              key={`intro-${i}`}
+              className="text-[12.5px] leading-relaxed text-text-soft"
+            >
+              {p}
+            </p>
+          ))}
+          {lesson.sections.map((section) => (
+            <div key={section.heading} className="flex flex-col gap-1.5">
+              <h3
+                className="font-mono text-[10px] uppercase tracking-[0.12em]"
+                style={{ color: accent }}
+              >
+                {section.heading}
+              </h3>
+              {section.body.map((p, i) => (
+                <p
+                  key={i}
+                  className="text-[12.5px] leading-relaxed text-text-soft"
+                >
+                  {p}
+                </p>
+              ))}
+            </div>
+          ))}
+          <div className="flex flex-col gap-1.5">
+            <h3
+              className="font-mono text-[10px] uppercase tracking-[0.12em]"
+              style={{ color: accent }}
+            >
+              Practice
+            </h3>
+            <ol className="flex list-decimal flex-col gap-1 pl-4 marker:text-text-dim">
+              {lesson.practice.map((step, i) => (
+                <li
+                  key={i}
+                  className="text-[12.5px] leading-relaxed text-text-soft"
+                >
+                  {step}
+                </li>
+              ))}
+            </ol>
+          </div>
+          {lesson.watchOut ? (
+            <div className="rounded-lg border border-[#f0655a]/25 bg-[#f0655a]/[0.06] px-3 py-2 text-[12px] leading-relaxed">
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#f0655a]">
+                Watch out
+              </span>{" "}
+              <span className="text-text-soft">{lesson.watchOut}</span>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      <div className="text-[12px] leading-relaxed">
+        <span
+          className="font-mono text-[10px] uppercase tracking-[0.12em]"
+          style={{ color: accent }}
+        >
+          Checkpoint
+        </span>{" "}
+        <span className="text-text-soft">{topic.goal}</span>
+      </div>
+    </div>
   );
 }
