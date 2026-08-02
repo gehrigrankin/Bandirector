@@ -59,17 +59,25 @@ const ACTIVE_TEXT: Record<Accent, string> = {
   jam: "text-jam",
 };
 
-/** Slim 64px icon rail — desktop only. */
+/**
+ * Desktop nav — slim 64px icon rail on medium screens, expands to a labeled
+ * sidebar at lg and up.
+ */
 export function AppRail({ initials = "GR" }: { initials?: string }) {
   const pathname = usePathname() ?? "/";
   return (
-    <nav className="hidden w-16 flex-shrink-0 flex-col items-center gap-1.5 border-r border-line-soft py-3.5 md:flex">
+    <nav className="hidden w-16 flex-shrink-0 flex-col items-center gap-1.5 border-r border-line-soft px-3 py-3.5 md:flex lg:w-48 lg:items-stretch">
       <Link
         href="/"
         aria-label="Bandirector home"
-        className="mb-3 flex size-[34px] items-center justify-center rounded-[10px] bg-accent font-display text-lg font-bold text-black"
+        className="mb-3 flex items-center justify-center gap-2.5 lg:justify-start lg:px-1"
       >
-        B
+        <span className="flex size-[34px] flex-shrink-0 items-center justify-center rounded-[10px] bg-accent font-display text-lg font-bold text-black">
+          B
+        </span>
+        <span className="hidden font-display text-[15px] font-bold text-text lg:block">
+          Bandirector
+        </span>
       </Link>
       {NAV.map((item) => {
         const active = isActive(item, pathname);
@@ -81,19 +89,24 @@ export function AppRail({ initials = "GR" }: { initials?: string }) {
             aria-label={item.label}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex size-10 items-center justify-center rounded-[10px] transition-colors",
+              "flex h-10 w-10 items-center justify-center rounded-[10px] transition-colors lg:w-full lg:justify-start lg:gap-3 lg:px-3",
               active
                 ? ACTIVE_TILE[item.accent]
                 : "text-text-dim hover:bg-bg-raised hover:text-text-soft",
             )}
           >
-            <Icon className="size-5" strokeWidth={1.8} />
+            <Icon className="size-5 flex-shrink-0" strokeWidth={1.8} />
+            <span className="hidden text-sm font-medium lg:block">
+              {item.label}
+            </span>
           </Link>
         );
       })}
       <div className="flex-1" />
-      <div className="flex size-8 items-center justify-center rounded-full bg-bg-higher text-[11px] font-semibold text-text-soft">
-        {initials}
+      <div className="flex items-center justify-center gap-2.5 lg:justify-start lg:px-1">
+        <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-full bg-bg-higher text-[11px] font-semibold text-text-soft">
+          {initials}
+        </span>
       </div>
     </nav>
   );
