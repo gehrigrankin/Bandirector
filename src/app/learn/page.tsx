@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/ui/AppNav";
-import { JamUnavailable } from "@/components/JamUnavailable";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getInitials } from "@/lib/utils/initials";
 import { IcebergCourse } from "@/components/learn/IcebergCourse";
@@ -10,8 +9,42 @@ import type { TopicStatus } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
+function LearnLayout({
+  initials,
+  children,
+}: {
+  initials?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <AppShell initials={initials}>
+      <div className="mx-auto flex min-h-full max-w-3xl flex-col px-5 py-7 md:px-8 md:py-9">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="font-display text-2xl font-bold md:text-[28px]">
+            Learn
+          </h1>
+          <span className="text-xs text-text-muted">
+            The music iceberg — everything from first chords to the trench.
+          </span>
+        </div>
+
+        <div className="mt-6">{children}</div>
+      </div>
+    </AppShell>
+  );
+}
+
 export default async function LearnPage() {
-  if (!isSupabaseConfigured()) return <JamUnavailable />;
+  // No Supabase on this deployment — the course still works, with progress
+  // stored on the device.
+  if (!isSupabaseConfigured()) {
+    return (
+      <LearnLayout>
+        <IcebergCourse userId={null} initialProgress={{}} />
+      </LearnLayout>
+    );
+  }
+
   const supabase = createClient();
   const {
     data: { user },
@@ -31,21 +64,8 @@ export default async function LearnPage() {
   const initials = getInitials(user.user_metadata?.display_name ?? user.email);
 
   return (
-    <AppShell initials={initials}>
-      <div className="mx-auto flex min-h-full max-w-3xl flex-col px-5 py-7 md:px-8 md:py-9">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-display text-2xl font-bold md:text-[28px]">
-            Learn
-          </h1>
-          <span className="text-xs text-text-muted">
-            The music iceberg — everything from first chords to the trench.
-          </span>
-        </div>
-
-        <div className="mt-6">
-          <IcebergCourse userId={user.id} initialProgress={initialProgress} />
-        </div>
-      </div>
-    </AppShell>
+    <LearnLayout initials={initials}>
+      <IcebergCourse userId={user.id} initialProgress={initialProgress} />
+    </LearnLayout>
   );
 }

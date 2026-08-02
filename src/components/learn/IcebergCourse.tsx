@@ -61,13 +61,14 @@ const NEXT_STATUS: Record<DisplayStatus, TopicStatus | null> = {
 
 /**
  * Local mirror of progress, per user. Lets the page work before the
- * learning_progress table exists; entries sync up to the DB once it does.
+ * learning_progress table exists (entries sync up to the DB once it does),
+ * and is the sole store on deployments without Supabase (userId null).
  */
-function localKey(userId: string) {
-  return `bandirector.learn.${userId}`;
+function localKey(userId: string | null) {
+  return `bandirector.learn.${userId ?? "local"}`;
 }
 
-function loadLocal(userId: string): Record<string, TopicStatus> {
+function loadLocal(userId: string | null): Record<string, TopicStatus> {
   try {
     const raw = localStorage.getItem(localKey(userId));
     if (!raw) return {};
@@ -83,7 +84,10 @@ function loadLocal(userId: string): Record<string, TopicStatus> {
   }
 }
 
-function saveLocal(userId: string, progress: Record<string, TopicStatus>) {
+function saveLocal(
+  userId: string | null,
+  progress: Record<string, TopicStatus>,
+) {
   try {
     localStorage.setItem(localKey(userId), JSON.stringify(progress));
   } catch {
@@ -95,7 +99,8 @@ export function IcebergCourse({
   userId,
   initialProgress,
 }: {
-  userId: string;
+  /** null on deployments without Supabase — progress stays on this device. */
+  userId: string | null;
   initialProgress: Record<string, TopicStatus>;
 }) {
   const [track, setTrack] = useState<Track>("guitar");
@@ -103,9 +108,12 @@ export function IcebergCourse({
     useState<Record<string, TopicStatus>>(initialProgress);
   const [expanded, setExpanded] = useState<string | null>(null);
   /** false once a DB write fails (e.g. table missing) — local-only mode. */
-  const [dbOk, setDbOk] = useState(true);
+  const [dbOk, setDbOk] = useState(userId !== null);
 
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(
+    () => (userId !== null ? createClient() : null),
+    [userId],
+  );
 
   // Merge the local mirror in on mount, and push any local-only entries up to
   // the DB (no-op when the table doesn't exist yet — we just flag local mode).
@@ -118,6 +126,7 @@ export function IcebergCourse({
 
     setProgress((cur) => ({ ...Object.fromEntries(localOnly), ...cur }));
 
+    if (!supabase || userId === null) return;
     void supabase
       .from("learning_progress")
       .upsert(
@@ -141,6 +150,8 @@ export function IcebergCourse({
     else optimistic[topic.id] = next;
     setProgress(optimistic);
     saveLocal(userId, optimistic);
+
+    if (!supabase || userId === null) return;
 
     const { error } =
       next === null
@@ -226,8 +237,9 @@ export function IcebergCourse({
         {!dbOk ? (
           <div className="flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/[0.06] px-3 py-2 text-[11px] text-accent">
             <HardDrive className="size-3.5 flex-shrink-0" strokeWidth={1.8} />
-            Progress is saving to this device only for now — it will sync to
-            your account automatically once the database is set up.
+            {userId === null
+              ? "Progress saves to this device."
+              : "Progress is saving to this device only for now — it will sync to your account automatically once the database is set up."}
           </div>
         ) : null}
       </div>
