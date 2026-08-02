@@ -328,6 +328,69 @@ class Engine {
     }
   }
 
+  // ── Live input (MIDI keyboard) ────────────────────────────────────────────
+  // Live handles live in their own map so prune() — which tracks scheduled
+  // tracks — never disposes an instrument while a note is held.
+  private live = new Map<string, Handle>();
+  private liveStops = new Map<string, (time?: number) => void>();
+  liveVolume = 0.9;
+
+  private ensureLive(instrumentId: string): Handle {
+    const existing = this.live.get(instrumentId);
+    if (existing) return existing;
+
+    const ctx = this.context();
+    const def = getInstrument(instrumentId);
+    const gain = ctx.createGain();
+    gain.gain.value = this.liveVolume;
+    gain.connect(this.master!);
+    const send = ctx.createGain();
+    send.gain.value = 0.12;
+    gain.connect(send);
+    send.connect(this.convolver!);
+
+    const instrument: SmplrInstrument = def.isDrums
+      ? DrumMachine(ctx, { destination: gain })
+      : Soundfont(ctx, { instrument: def.gm, destination: gain, kit: "MusyngKite" });
+
+    const handle: Handle = {
+      instrumentId,
+      gain,
+      send,
+      instrument,
+      isDrums: !!def.isDrums,
+      loaded: false,
+    };
+    instrument.load.then(() => {
+      handle.loaded = true;
+    });
+    this.live.set(instrumentId, handle);
+    return handle;
+  }
+
+  /** Start loading a live instrument so the first played note doesn't stall. */
+  prepareLive(instrumentId: string) {
+    this.ensureLive(instrumentId);
+  }
+
+  liveNoteOn(instrumentId: string, note: number, velocity = 96) {
+    const handle = this.ensureLive(instrumentId);
+    if (!handle.loaded || handle.isDrums) return;
+    // Retrigger cleanly if the same note is somehow already sounding.
+    this.liveStops.get(`${instrumentId}:${note}`)?.();
+    const stop = handle.instrument.start({ note, velocity, ampRelease: 0.25 });
+    this.liveStops.set(`${instrumentId}:${note}`, stop);
+  }
+
+  liveNoteOff(instrumentId: string, note: number) {
+    const key = `${instrumentId}:${note}`;
+    const stop = this.liveStops.get(key);
+    if (stop) {
+      stop();
+      this.liveStops.delete(key);
+    }
+  }
+
   private tick = () => {
     const ctx = this.context();
     while (this.nextBarTime < ctx.currentTime + SCHEDULE_AHEAD) {
