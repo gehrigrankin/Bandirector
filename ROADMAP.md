@@ -32,24 +32,36 @@ A chord + loop workstation for writing songs:
 Audio is browser-only: one shared `AudioContext`, a custom lookahead scheduler
 (the Web Audio "two clocks" pattern), and smplr for real GM instrument timbres.
 
-## 3. How to play a song — *future*
+## 3. Song Coach ("how to play a song") — *shipped (v1)*
 
-A page that teaches how to play a specific song: its chords and sections, the
-part for each instrument, and a play-along mode. Bridges the Jam analysis and the
-Studio's instrument/style vocabulary.
+`/songs/<id>/coach` teaches how to play a specific uploaded song: its chords
+and sections and the part for each instrument. Bridges the Jam analysis and the
+Studio's instrument/style vocabulary. Future: a full play-along mode.
 
-## 4. Learn / progress tracker — *shipped (v1)*
+## 4. Learn / progress tracker — *shipped (v2)*
 
 The **music iceberg** (`/learn`): a six-tier curriculum from the surface (first
 chords, note names) down to the trench (counterpoint, transcribing the masters)
 for guitar and piano, with shared music-theory topics that count for both
-tracks. Each topic has a summary and a concrete checkpoint; you mark topics
-not started → learning → known, and progress persists per user
-(`learning_progress` table).
+tracks.
 
-Future: drums track, per-topic drills that link into the Studio/Coach,
-automatic progress from Coach sessions and Jams, "what to learn next"
-suggestions.
+Every topic is a **dedicated lesson page** (`/learn/<topic-id>`): intro,
+teaching sections, a numbered practice routine, a watch-out (the most common
+mistake), the checkpoint, and prev/next navigation that follows your track.
+Lessons embed **interactive visuals that make real sound** through the studio
+audio engine — tappable guitar chord boxes, a clickable fretboard, a clickable
+piano keyboard, and a step-sequence player for scales, progressions, and
+rhythm/ear examples (185 visuals across 69 topics; content in
+`src/lib/learning/lessons/`, visuals in `src/lib/learning/visuals/`).
+
+Progress is not started → learning → known per topic. It persists per user
+(`learning_progress` table) when Supabase is configured, and falls back to
+device-local storage otherwise — local entries sync up automatically once the
+DB exists.
+
+Future: drums track, a "quiz me" mode built on the checkpoints, per-topic
+drills that link into the Studio/Coach, automatic progress from Coach sessions
+and Jams, "what to learn next" suggestions.
 
 ---
 

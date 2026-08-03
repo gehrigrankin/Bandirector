@@ -1,6 +1,6 @@
 # Bandirector
 
-Bandirector is a multi-part music app. The two parts shipping today:
+Bandirector is a multi-part music app. The parts shipping today:
 
 - **Songwriter Studio** (`/studio`) — a chord + loop workstation. Pick a root and
   quality, choose a playing style for an instrument, loop it, and lock loops to
@@ -8,6 +8,13 @@ Bandirector is a multi-part music app. The two parts shipping today:
 - **Jam Together** (`/jam`) — the real-time jam: a host uploads an MP3, the
   browser analyzes chords/tempo/key, and everyone picks their instrument + style
   and sees their part synced to a timeline.
+- **Song Coach** (`/songs/<id>/coach`) — learn to play a specific uploaded song:
+  its sections, chords, and per-instrument parts.
+- **Learn** (`/learn`) — the music iceberg: a six-tier curriculum for guitar and
+  piano. Every topic is a full lesson page with interactive diagrams you can
+  hear (chord boxes, fretboard, piano keys, play-along sequences), practice
+  steps, and a checkpoint, with not started → learning → known progress
+  tracking.
 
 Bandirector installs as a phone app (PWA — "Add to Home Screen" / the install
 prompt) and takes **MIDI input**: plug a keyboard into your phone or computer
@@ -24,7 +31,7 @@ See [ROADMAP.md](./ROADMAP.md) for where this is going.
 - **Supabase** (Postgres + Auth + Realtime + Storage)
 - **Tailwind CSS** (dark theme, mobile-first)
 - **smplr** (Soundfont + DrumMachine) with a custom lookahead scheduler for the
-  Songwriter Studio
+  Songwriter Studio; the Learn diagrams play through the same engine
 - **Web Worker** audio analysis (essentia.js / chord-detector)
 - **LRCLIB** for synced lyrics
 
@@ -37,21 +44,14 @@ npm install
 npm run dev
 ```
 
-Apply the schema in `supabase/migrations/0001_init.sql` to your Supabase project (SQL editor or `supabase db push`).
+Supabase is **optional**: without it the Songwriter Studio and Learn work fully
+(Learn keeps progress on the device); accounts, uploads, jam rooms, and the
+Song Coach need it.
 
-Later migrations (`0002_…` onward) can be applied by visiting `/migrate?token=<MIGRATE_TOKEN>` — set `SUPABASE_DB_URL` and `MIGRATE_TOKEN` in the environment first (see `.env.example`).
+With Supabase, apply the schema in `supabase/migrations/0001_init.sql` to your
+project (SQL editor or `supabase db push`). Later migrations (`0002_…` onward)
+can be applied by visiting `/migrate?token=<MIGRATE_TOKEN>` — set
+`SUPABASE_DB_URL` (the *Transaction pooler* connection string on serverless
+hosts) and `MIGRATE_TOKEN` in the environment first (see `.env.example`).
 
 Create a public storage bucket named `songs` for MP3 uploads.
-
-## Implementation order (from the spec)
-
-1. Scaffold Next.js + Supabase + auth + schema + RLS
-2. Landing + room creation + join + lobby with Realtime
-3. Upload + metadata form
-4. Web Worker analysis
-5. LRCLIB lyrics
-6. Chord timeline + playback + sync + host controls
-7. Acoustic guitar rhythm view
-8. Remaining instrument views
-9. Manual chord correction
-10. Favorites
