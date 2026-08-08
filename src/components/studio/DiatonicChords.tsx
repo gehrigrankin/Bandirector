@@ -40,7 +40,7 @@ export function DiatonicChords({ tonic, mode, ext, current, onPick }: Props) {
                 "flex h-14 min-w-16 shrink-0 snap-start flex-col items-center justify-center rounded-xl border px-3 transition-colors",
                 active
                   ? "border-accent bg-accent text-black"
-                  : "border-border bg-bg-raised text-text hover:bg-bg-higher",
+                  : "border-line bg-bg-raised text-text hover:bg-bg-higher",
               )}
             >
               <span

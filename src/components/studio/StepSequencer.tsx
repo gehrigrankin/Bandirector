@@ -95,8 +95,8 @@ function StepCells({
                 ? "border-accent bg-accent"
                 : "border-accent-soft bg-accent-soft"
               : i % BEAT_STEPS === 0
-                ? "border-border bg-bg-higher"
-                : "border-border bg-bg-raised",
+                ? "border-line bg-bg-higher"
+                : "border-line bg-bg-raised",
             i === playStep ? "ring-2 ring-inset ring-text" : "",
           )}
         />
@@ -126,7 +126,7 @@ export function StepSequencer({
     return (
       <section>
         <h2 className="mb-2 text-sm font-semibold text-text-muted">Pattern</h2>
-        <div className="space-y-3 rounded-xl border border-border bg-bg-raised p-3">
+        <div className="space-y-3 rounded-xl border border-line bg-bg-raised p-3">
           <OptionRow
             label="Left hand"
             options={LEFT_HAND_TEXTURES}
@@ -201,7 +201,7 @@ export function StepSequencer({
       )}
 
       {/* The grid */}
-      <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-bg-raised p-3">
+      <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-bg-raised p-3">
         {pattern.kind === "melodic" ? (
           <div className="min-w-max">
             <StepCells steps={pattern.hits} playStep={playStep} onToggle={onToggleStep} />

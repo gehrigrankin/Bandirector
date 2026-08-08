@@ -563,7 +563,7 @@ export function StudioApp() {
             type="button"
             onClick={() => setChordQuality(c)}
             className={cn(
-              "px-3 py-1 text-[11px] font-semibold",
+              "px-3 py-1.5 text-[11px] font-semibold",
               chordQuality === c ? "bg-accent text-black" : "text-text-muted",
             )}
           >
@@ -576,7 +576,6 @@ export function StudioApp() {
 
   const tryRow = (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[11px] text-text-dim">Try</span>
       <Suggestions onApply={applyTemplate} />
       <StylePresets onApply={applyStyle} />
     </div>
@@ -655,7 +654,7 @@ export function StudioApp() {
                     key={i}
                     className={cn(
                       "h-9 flex-1 rounded-[4px] border",
-                      on ? "border-accent bg-accent/80" : "border-line bg-[#16161d]",
+                      on ? "border-accent bg-accent/80" : "border-line bg-bg-card",
                       i % 4 === 0 ? "ml-1 first:ml-0" : "",
                     )}
                   />
@@ -1070,7 +1069,7 @@ export function StudioApp() {
               type="button"
               onClick={() => setViewMode(m)}
               className={cn(
-                "px-3 py-1 text-[11px] font-semibold capitalize",
+                "px-3 py-1.5 text-[11px] font-semibold capitalize",
                 viewMode === m ? "bg-bg-higher text-text" : "text-text-muted",
               )}
             >
@@ -1164,10 +1163,8 @@ export function StudioApp() {
       <div className="flex min-h-0 flex-1 flex-col lg:hidden">
         <div className="flex flex-shrink-0 items-center gap-2 px-4 pt-4">
           <div>
-            <div className="text-[9px] uppercase tracking-[0.12em] text-text-dim">
-              Songwriter Studio
-            </div>
-            <div className="font-display text-[17px] font-semibold">Untitled loop</div>
+            <div className={railLabel}>Songwriter Studio</div>
+            <div className="mt-0.5 font-display text-[17px] font-semibold">Untitled loop</div>
           </div>
           <div className="ml-auto">
             <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
