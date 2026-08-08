@@ -130,7 +130,7 @@ export default async function LearnPage() {
                 {s.filled ? (
                   <Link
                     href="/library"
-                    className="mt-auto inline-flex h-9 items-center self-start rounded-[10px] bg-accent px-4 pt-[1px] text-xs font-semibold text-black"
+                    className="mt-auto inline-flex h-9 items-center justify-center self-start rounded-xl bg-accent px-4 text-xs font-semibold text-black"
                   >
                     Continue
                   </Link>
@@ -148,11 +148,19 @@ export default async function LearnPage() {
                   {learned.length}
                 </div>
               </div>
-              <div className="mt-3 flex flex-col gap-2">
+              <div className="mt-3 flex flex-1 flex-col gap-2">
                 {learned.length === 0 ? (
-                  <Link href="/library" className="text-xs text-accent">
-                    Add songs from your library →
-                  </Link>
+                  <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-line-soft px-4 py-6 text-center">
+                    <p className="text-xs text-text-dim">
+                      Songs you practice will show up here.
+                    </p>
+                    <Link
+                      href="/library"
+                      className="mt-2 text-xs font-medium text-accent hover:text-accent-soft"
+                    >
+                      Add songs from your library →
+                    </Link>
+                  </div>
                 ) : (
                   learned.map((song, i) => (
                     <Link
@@ -181,7 +189,7 @@ export default async function LearnPage() {
 
           {/* sidebar */}
           <div className="flex w-full flex-col gap-3.5 lg:w-[300px] lg:shrink-0">
-            <div className="rounded-2xl border border-line bg-bg-raised p-[18px]">
+            <div className="rounded-2xl border border-line bg-bg-raised p-4">
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">
                 Up next for you
               </div>
@@ -222,7 +230,7 @@ export default async function LearnPage() {
               </div>
             </div>
 
-            <div className="flex flex-1 flex-col rounded-2xl border border-line bg-bg-raised p-[18px]">
+            <div className="flex flex-1 flex-col rounded-2xl border border-line bg-bg-raised p-4">
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">
                 This week
               </div>
