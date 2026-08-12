@@ -32,7 +32,7 @@ export function VocalsView({ song, positionMs, chordAt }: Props) {
           <span className="text-sm">{chordAt.next?.chord ?? "—"}</span>
         </div>
 
-        <div className="min-h-[40vh] w-full max-w-2xl rounded-2xl border border-border bg-bg-raised px-6 py-10">
+        <div className="min-h-[40vh] w-full max-w-2xl rounded-2xl border border-line bg-bg-raised px-6 py-10">
           <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} prominent />
         </div>
       </div>

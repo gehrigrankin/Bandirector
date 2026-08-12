@@ -18,7 +18,7 @@ export function ChordColor({ value, onChange, stepExt, onStepExt }: Props) {
   return (
     <section>
       <h2 className="mb-2 text-sm font-semibold text-text-muted">Chord color</h2>
-      <div className="rounded-2xl border border-border bg-bg-raised p-4">
+      <div className="rounded-2xl border border-line bg-bg-raised p-4">
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-medium text-text-muted">All chords</span>
           <div className="flex gap-2">
@@ -34,7 +34,7 @@ export function ChordColor({ value, onChange, stepExt, onStepExt }: Props) {
             ))}
           </div>
         </div>
-        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
           <span className="text-xs font-medium text-text-muted">This chord</span>
           <div className="flex gap-2">
             <Button

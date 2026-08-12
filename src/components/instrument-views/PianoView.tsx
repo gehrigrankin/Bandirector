@@ -43,7 +43,7 @@ export function PianoView({ song, positionMs, chordAt }: Props) {
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-raised p-4">
+      <div className="rounded-xl border border-line bg-bg-raised p-4">
         <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} />
       </div>
     </div>

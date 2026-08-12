@@ -13,7 +13,7 @@ export function NextChord({ next }: Props) {
       <span className="text-xs uppercase tracking-widest">Next</span>
       <span
         className={cn(
-          "rounded-lg border border-border px-3 py-1 text-xl font-semibold",
+          "rounded-lg border border-line px-3 py-1 text-xl font-semibold",
           next?.verified ? "border-accent text-accent" : "text-text",
         )}
       >

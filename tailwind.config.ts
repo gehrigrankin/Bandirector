@@ -34,9 +34,6 @@ const config: Config = {
           dim: "#5e5e6b",
           soft: "#c9c9d4",
         },
-        border: {
-          DEFAULT: "#23232c",
-        },
         ok: "#58c98b",
         danger: "#f0655a",
       },

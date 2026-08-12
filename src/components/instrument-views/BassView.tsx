@@ -39,7 +39,7 @@ export function BassView({ song, positionMs, chordAt }: Props) {
           Root note
         </div>
 
-        <div className="mt-4 rounded-xl border border-border bg-bg-raised px-4 py-3 text-center">
+        <div className="mt-4 rounded-xl border border-line bg-bg-raised px-4 py-3 text-center">
           <div className="text-xs uppercase tracking-wider text-text-muted">
             Next
           </div>
@@ -51,7 +51,7 @@ export function BassView({ song, positionMs, chordAt }: Props) {
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-raised p-4">
+      <div className="rounded-xl border border-line bg-bg-raised p-4">
         <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} />
       </div>
     </div>

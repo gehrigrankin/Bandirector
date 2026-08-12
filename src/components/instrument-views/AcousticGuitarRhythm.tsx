@@ -48,7 +48,7 @@ export function AcousticGuitarRhythm({ song, positionMs, chordAt }: Props) {
 
         <NextChord next={chordAt.next} />
 
-        <div className="mt-2 rounded-2xl border border-border bg-bg-raised p-4">
+        <div className="mt-2 rounded-2xl border border-line bg-bg-raised p-4">
           <div className="mb-2 text-center text-xs uppercase tracking-wider text-text-muted">
             {pattern.label}
           </div>
@@ -63,7 +63,7 @@ export function AcousticGuitarRhythm({ song, positionMs, chordAt }: Props) {
                     s === "-" && "opacity-30",
                     active
                       ? "border-accent bg-accent/20 text-accent"
-                      : "border-border bg-bg text-text",
+                      : "border-line bg-bg text-text",
                   )}
                 >
                   {s === "D" ? "↓" : s === "U" ? "↑" : "·"}
@@ -78,7 +78,7 @@ export function AcousticGuitarRhythm({ song, positionMs, chordAt }: Props) {
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-raised p-4">
+      <div className="rounded-xl border border-line bg-bg-raised p-4">
         <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} />
       </div>
     </div>

@@ -29,7 +29,7 @@ export function TrackRow({
   const def = getInstrument(track.instrumentId);
 
   return (
-    <div className="rounded-xl border border-border bg-bg-raised p-3">
+    <div className="rounded-xl border border-line bg-bg-raised p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate font-semibold">{def.label}</div>

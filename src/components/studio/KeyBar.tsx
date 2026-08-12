@@ -30,7 +30,7 @@ export function KeyBar({ tonic, mode, onTonic, onMode }: Props) {
             </Button>
           ))}
         </div>
-        <div className="flex shrink-0 overflow-hidden rounded-xl border border-border">
+        <div className="flex shrink-0 overflow-hidden rounded-xl border border-line">
           {(["major", "minor"] as Mode[]).map((m) => (
             <button
               key={m}

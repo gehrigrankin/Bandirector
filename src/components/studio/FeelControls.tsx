@@ -40,7 +40,7 @@ export function FeelControls({ swing, humanize, onSwing, onHumanize }: Props) {
           </Button>
         ))}
       </div>
-      <div className="grid gap-x-4 gap-y-1 rounded-2xl border border-border bg-bg-raised p-4 sm:grid-cols-2">
+      <div className="grid gap-x-4 gap-y-1 rounded-2xl border border-line bg-bg-raised p-4 sm:grid-cols-2">
         <Slider
           label="Swing"
           value={swing}

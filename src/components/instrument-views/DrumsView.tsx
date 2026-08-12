@@ -42,7 +42,7 @@ export function DrumsView({ song, positionMs, chordAt }: Props) {
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6">
-        <div className="rounded-2xl border border-border bg-bg-raised p-6 text-center">
+        <div className="rounded-2xl border border-line bg-bg-raised p-6 text-center">
           <div className="text-xs uppercase tracking-wider text-accent">{feel}</div>
           <div className="mt-2 text-base">{label}</div>
         </div>
@@ -55,7 +55,7 @@ export function DrumsView({ song, positionMs, chordAt }: Props) {
                 "flex h-14 w-10 flex-col items-center justify-center rounded-md border",
                 i === slot
                   ? "border-accent bg-accent/20 text-accent"
-                  : "border-border bg-bg text-text",
+                  : "border-line bg-bg text-text",
               )}
             >
               <span className="text-[10px] uppercase text-text-muted">
@@ -77,7 +77,7 @@ export function DrumsView({ song, positionMs, chordAt }: Props) {
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-raised p-4">
+      <div className="rounded-xl border border-line bg-bg-raised p-4">
         <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} />
       </div>
     </div>

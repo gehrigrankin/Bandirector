@@ -639,7 +639,7 @@ export function StudioApp() {
                     key={i}
                     className={cn(
                       "h-9 flex-1 rounded-[4px] border",
-                      on ? "border-accent bg-accent/80" : "border-line bg-bg-card",
+                      on ? "border-accent bg-accent/80" : "border-line bg-[#16161d]",
                       i % 4 === 0 ? "ml-1 first:ml-0" : "",
                     )}
                   />

@@ -12,7 +12,7 @@ const LINKS = [
 export function TopNav() {
   const pathname = usePathname() ?? "/";
   return (
-    <nav className="flex items-center justify-between border-b border-border px-4 py-3 safe-top">
+    <nav className="flex items-center justify-between border-b border-line px-4 py-3 safe-top">
       <Link href="/" className="text-lg font-bold tracking-tight">
         Bandirector
       </Link>
