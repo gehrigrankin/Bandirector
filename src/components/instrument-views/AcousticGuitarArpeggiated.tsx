@@ -44,7 +44,7 @@ export function AcousticGuitarArpeggiated({ song, positionMs, chordAt }: Props) 
           <GuitarDiagram chord={chordAt.current.chord} size={140} />
         ) : null}
 
-        <div className="rounded-xl border border-border bg-bg-raised p-3">
+        <div className="rounded-xl border border-line bg-bg-raised p-3">
           <div className="mb-2 text-center text-xs uppercase tracking-wider text-text-muted">
             String sequence
           </div>
@@ -56,7 +56,7 @@ export function AcousticGuitarArpeggiated({ song, positionMs, chordAt }: Props) 
                   "flex h-10 w-10 items-center justify-center rounded-md border text-sm font-semibold",
                   i === idx
                     ? "border-accent bg-accent/20 text-accent"
-                    : "border-border bg-bg text-text",
+                    : "border-line bg-bg text-text",
                 )}
               >
                 {s}
@@ -66,7 +66,7 @@ export function AcousticGuitarArpeggiated({ song, positionMs, chordAt }: Props) 
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-raised p-4">
+      <div className="rounded-xl border border-line bg-bg-raised p-4">
         <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} />
       </div>
     </div>

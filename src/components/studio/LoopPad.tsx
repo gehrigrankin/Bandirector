@@ -18,7 +18,7 @@ interface Props {
 export function LoopPad({ selection, chords, barCount, isPlaying, onLock }: Props) {
   const def = getInstrument(selection.instrumentId);
   return (
-    <section className="rounded-2xl border border-border bg-bg-raised p-4">
+    <section className="rounded-2xl border border-line bg-bg-raised p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate font-display text-2xl font-semibold tracking-tight">

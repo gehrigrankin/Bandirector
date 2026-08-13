@@ -43,7 +43,7 @@ export function AcousticGuitarFingerstyle({ song, positionMs, chordAt }: Props) 
           <GuitarDiagram chord={chordAt.current.chord} size={160} />
         ) : null}
 
-        <div className="rounded-xl border border-border bg-bg-raised p-3 text-center text-sm">
+        <div className="rounded-xl border border-line bg-bg-raised p-3 text-center text-sm">
           <div className="text-xs uppercase tracking-wider text-text-muted">
             Picking pattern
           </div>
@@ -51,7 +51,7 @@ export function AcousticGuitarFingerstyle({ song, positionMs, chordAt }: Props) 
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-raised p-4">
+      <div className="rounded-xl border border-line bg-bg-raised p-4">
         <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} />
       </div>
     </div>

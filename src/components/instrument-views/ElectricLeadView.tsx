@@ -35,7 +35,7 @@ export function ElectricLeadView({ song, positionMs, chordAt }: Props) {
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6">
         {inLongSection ? (
-          <div className="rounded-2xl border border-border bg-bg-raised p-6 text-center">
+          <div className="rounded-2xl border border-line bg-bg-raised p-6 text-center">
             <div className="text-sm uppercase tracking-wider text-accent">
               Solo section
             </div>
@@ -68,7 +68,7 @@ export function ElectricLeadView({ song, positionMs, chordAt }: Props) {
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-border bg-bg-raised p-4">
+      <div className="rounded-xl border border-line bg-bg-raised p-4">
         <SyncedLyrics lrc={song.lyrics_lrc} positionMs={positionMs} />
       </div>
     </div>

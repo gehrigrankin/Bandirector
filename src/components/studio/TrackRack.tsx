@@ -28,7 +28,7 @@ export function TrackRack({
         Layers{tracks.length > 0 ? ` (${tracks.length})` : ""}
       </h2>
       {tracks.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-4 text-sm text-text-dim">
+        <p className="rounded-xl border border-dashed border-line p-4 text-sm text-text-dim">
           No locked loops yet. Build a part above and press <strong>Lock loop</strong>{" "}
           to stack it here — every layer plays together under one transport.
         </p>

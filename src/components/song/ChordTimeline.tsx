@@ -108,7 +108,7 @@ export function ChordTimeline({
         {analysis.beats?.slice(0, 2000).map((b, i) => (
           <div
             key={`b${i}`}
-            className="absolute top-0 w-px bg-border/60"
+            className="absolute top-0 w-px bg-line/60"
             style={{
               left: b.time * PX_PER_SECOND,
               height: 6,

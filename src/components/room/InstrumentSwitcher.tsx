@@ -30,7 +30,7 @@ export function InstrumentSwitcher({ instrument, style, onChange }: Props) {
       </button>
       {open ? (
         <div
-          className="absolute right-0 top-full z-30 mt-2 w-64 rounded-xl border border-border bg-bg-raised p-3 shadow-xl"
+          className="absolute right-0 top-full z-30 mt-2 w-64 rounded-xl border border-line bg-bg-raised p-3 shadow-xl"
           onMouseLeave={() => setOpen(false)}
         >
           <div className="mb-2 text-xs uppercase tracking-wider text-text-dim">
@@ -71,7 +71,7 @@ export function InstrumentSwitcher({ instrument, style, onChange }: Props) {
                       "rounded-lg border px-2 py-1.5 text-left text-xs",
                       s.value === style
                         ? "border-accent bg-accent/10 text-accent"
-                        : "border-border bg-bg hover:bg-bg-higher",
+                        : "border-line bg-bg hover:bg-bg-higher",
                     )}
                   >
                     {s.label}

@@ -33,7 +33,7 @@ export function ProgressionBar({
               "relative flex shrink-0 snap-start items-center rounded-xl border",
               active
                 ? "border-accent bg-accent text-black"
-                : "border-border bg-bg-raised text-text",
+                : "border-line bg-bg-raised text-text",
             )}
           >
             <button
@@ -63,7 +63,7 @@ export function ProgressionBar({
         type="button"
         aria-label="Add chord"
         onClick={onAdd}
-        className="flex h-11 w-11 shrink-0 snap-start items-center justify-center rounded-xl border border-dashed border-border text-text-muted hover:text-text"
+        className="flex h-11 w-11 shrink-0 snap-start items-center justify-center rounded-xl border border-dashed border-line text-text-muted hover:text-text"
       >
         <Plus className="size-5" />
       </button>
