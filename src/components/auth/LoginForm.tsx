@@ -46,12 +46,6 @@ export function LoginForm({ returnTo = "/library" }: { returnTo?: string }) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <button type="button" className="-mt-1 text-left text-xs font-medium text-accent hover:text-accent-soft" onClick={async () => {
-        setError(null);
-        const { error: resetError } = await createClient().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` });
-        if (resetError) setError(resetError.message); else setResetSent(true);
-      }}>Forgot your password?</button>
-      {resetSent ? <p className="text-xs text-ok">If that email is registered, a reset link is on its way.</p> : null}
       <Input
         label="Password"
         name="password"
@@ -61,6 +55,12 @@ export function LoginForm({ returnTo = "/library" }: { returnTo?: string }) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
+      <button type="button" className="-mt-1 text-left text-xs font-medium text-accent hover:text-accent-soft" onClick={async () => {
+        setError(null);
+        const { error: resetError } = await createClient().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` });
+        if (resetError) setError(resetError.message); else setResetSent(true);
+      }}>Forgot your password?</button>
+      {resetSent ? <p className="text-xs text-ok">If that email is registered, a reset link is on its way.</p> : null}
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       <Button type="submit" size="lg" className="w-full" loading={loading}>
         Log in
