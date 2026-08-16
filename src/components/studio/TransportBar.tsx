@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Minus, Play, Plus, Square, Volume2 } from "lucide-react";
+import { Layers3, Minus, Play, Plus, Square, Volume2 } from "lucide-react";
 
 interface Props {
   isPlaying: boolean;
@@ -10,6 +10,7 @@ interface Props {
   onBpm: (bpm: number) => void;
   onMasterVolume: (v: number) => void;
   canLock: boolean;
+  layerCount: number;
   onLock: () => void;
 }
 
@@ -21,6 +22,7 @@ export function TransportBar({
   onBpm,
   onMasterVolume,
   canLock,
+  layerCount,
   onLock,
 }: Props) {
   return (
@@ -84,11 +86,16 @@ export function TransportBar({
           type="button"
           onClick={onLock}
           disabled={!canLock}
-          aria-label="Lock loop as a layer"
-          className="flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-accent px-3.5 text-sm font-semibold text-black disabled:bg-bg-higher disabled:text-text-dim"
+          aria-label="Add current part as a layer"
+          className="flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-accent px-3 text-sm font-semibold text-black disabled:bg-bg-higher disabled:text-text-dim"
         >
-          <Lock className="size-4" />
-          <span className="hidden min-[360px]:inline">Lock</span>
+          <Layers3 className="size-4" />
+          <span className="hidden min-[360px]:inline">Layer</span>
+          {layerCount > 0 ? (
+            <span className="flex size-5 items-center justify-center rounded-full bg-black/15 font-mono text-[10px]">
+              {layerCount}
+            </span>
+          ) : null}
         </button>
       </div>
     </div>
