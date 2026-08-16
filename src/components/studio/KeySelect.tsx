@@ -14,7 +14,7 @@ interface Props {
 /** Compact key picker — a dropdown, not thirteen pills. */
 export function KeySelect({ tonic, mode, onTonic, onMode }: Props) {
   return (
-    <label className="relative inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs text-text-soft">
+    <label className="relative inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-xs text-text-soft">
       <span className="text-text-muted">Key</span>
       <span className="font-display font-semibold text-text">
         {tonic} {mode === "major" ? "Major" : "Minor"}

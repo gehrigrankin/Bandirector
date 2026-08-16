@@ -18,6 +18,7 @@ interface Props {
   onAdd: () => void;
   onRemove: (i: number) => void;
   onCycleColor: () => void;
+  compact?: boolean;
 }
 
 const COLOR_LABEL: Record<string, string> = {
@@ -33,9 +34,15 @@ export function ProgressionCards({
   onAdd,
   onRemove,
   onCycleColor,
+  compact = false,
 }: Props) {
   return (
-    <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1">
+    <div
+      className={cn(
+        "flex items-stretch overflow-x-auto pb-1",
+        compact ? "-mx-4 gap-2 px-4" : "gap-2.5",
+      )}
+    >
       {cards.length === 0 ? (
         <div className="flex min-w-[220px] flex-col justify-center rounded-2xl border border-dashed border-[#2e2e38] px-4 py-3">
           <div className="font-display text-lg font-semibold text-text-soft">
@@ -55,8 +62,16 @@ export function ProgressionCards({
             role="button"
             tabIndex={0}
             onClick={() => onSelect(i)}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect(i);
+              }
+            }}
             className={cn(
-              "relative flex min-w-[168px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border px-4 py-3 transition-colors",
+              "relative flex shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border transition-colors",
+              compact ? "min-w-[136px] px-3 py-2.5" : "min-w-[168px] px-4 py-3",
               active
                 ? "border-accent bg-accent/[0.08]"
                 : "border-line bg-bg-raised hover:bg-bg-higher",
@@ -72,7 +87,7 @@ export function ProgressionCards({
                 {c.numeral} · BAR {i + 1}
               </span>
               <div className="flex items-center gap-1.5">
-                {active ? (
+                {active && !compact ? (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -93,7 +108,8 @@ export function ProgressionCards({
                     onRemove(i);
                   }}
                   className={cn(
-                    "hover:text-text",
+                    "flex items-center justify-center rounded-lg hover:text-text",
+                    compact ? "size-8" : "size-6",
                     active ? "text-accent/70" : "text-text-dim",
                   )}
                 >
@@ -103,13 +119,19 @@ export function ProgressionCards({
             </div>
             <div
               className={cn(
-                "mt-1 font-display text-[32px] font-semibold leading-none",
+                "mt-1 font-display font-semibold leading-none",
+                compact ? "text-[26px]" : "text-[32px]",
                 active ? "text-accent" : "text-text",
               )}
             >
               {c.label}
             </div>
-            <div className="mt-2 font-mono text-[10.5px] text-text-dim">
+            <div
+              className={cn(
+                "font-mono text-text-dim",
+                compact ? "mt-1.5 text-[9.5px]" : "mt-2 text-[10.5px]",
+              )}
+            >
               {c.notes.join(" · ")}
             </div>
             {active ? (
@@ -122,7 +144,10 @@ export function ProgressionCards({
         type="button"
         aria-label="Add chord"
         onClick={onAdd}
-        className="flex w-14 shrink-0 items-center justify-center rounded-2xl border border-dashed border-[#2e2e38] text-text-dim hover:text-text"
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-2xl border border-dashed border-[#2e2e38] text-text-dim hover:text-text",
+          compact ? "w-12" : "w-14",
+        )}
       >
         <Plus className="size-5" />
       </button>
