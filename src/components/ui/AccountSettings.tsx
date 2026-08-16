@@ -6,7 +6,7 @@ import { LogOut, SlidersHorizontal, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 
-export function AccountSettings({ email, initials }: { email?: string | null; initials: string }) {
+export function AccountSettings({ email, initials, canSignOut = false }: { email?: string | null; initials: string; canSignOut?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -42,9 +42,15 @@ export function AccountSettings({ email, initials }: { email?: string | null; in
           <p className="mt-1 text-xs leading-relaxed text-text-muted">Tune latency, metronome, and MIDI preferences.</p>
         </div>
       </section>
-      <Button variant="secondary" className="w-full sm:w-auto" onClick={signOut} loading={loading}>
-        <LogOut className="size-4" /> Sign out
-      </Button>
+      {canSignOut ? (
+        <Button variant="secondary" className="w-full sm:w-auto" onClick={signOut} loading={loading}>
+          <LogOut className="size-4" /> Sign out
+        </Button>
+      ) : (
+        <p className="rounded-2xl border border-line-soft bg-bg-card px-4 py-3 text-sm text-text-muted">
+          Guest mode is ready on this device. Sign in when you want cloud sync and shared rooms.
+        </p>
+      )}
     </div>
   );
 }
