@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
-export function LoginForm() {
+export function LoginForm({ returnTo = "/library" }: { returnTo?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +31,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/library");
+    router.push(returnTo.startsWith("/") ? returnTo : "/library");
     router.refresh();
   }
 
@@ -45,6 +46,12 @@ export function LoginForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
+      <button type="button" className="-mt-1 text-left text-xs font-medium text-accent hover:text-accent-soft" onClick={async () => {
+        setError(null);
+        const { error: resetError } = await createClient().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` });
+        if (resetError) setError(resetError.message); else setResetSent(true);
+      }}>Forgot your password?</button>
+      {resetSent ? <p className="text-xs text-ok">If that email is registered, a reset link is on its way.</p> : null}
       <Input
         label="Password"
         name="password"

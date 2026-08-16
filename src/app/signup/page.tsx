@@ -3,7 +3,7 @@ import { SignupForm } from "@/components/auth/SignupForm";
 import { JamUnavailable } from "@/components/JamUnavailable";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export default function SignupPage() {
+export default function SignupPage({ searchParams }: { searchParams?: { returnTo?: string } }) {
   if (!isSupabaseConfigured()) return <JamUnavailable />;
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-5 py-10 safe-top safe-bottom">
@@ -23,13 +23,13 @@ export default function SignupPage() {
           <div>
             <h1 className="font-display text-[26px] font-bold">Create account</h1>
             <p className="mt-1 text-[13px] text-text-muted">
-              Host rooms, upload songs, save favorites.
+              Keep your music synced and invite people into your rooms.
             </p>
           </div>
         </div>
 
         <div className="rounded-[18px] border border-line bg-bg-raised p-6">
-          <SignupForm />
+          <SignupForm returnTo={searchParams?.returnTo} />
         </div>
 
         <p className="text-center text-[13px] text-text-muted">

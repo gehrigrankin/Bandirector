@@ -145,7 +145,7 @@ export function SongCoach({ song }: { song: Song }) {
       {/* header */}
       <header className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-line-soft px-4 py-3 md:h-16 md:px-6 md:py-0">
         <Link
-          href={`/songs/${song.id}/edit`}
+          href={`/songs/${song.id}`}
           aria-label="Back"
           className="text-text-dim hover:text-text md:hidden"
         >
@@ -153,7 +153,7 @@ export function SongCoach({ song }: { song: Song }) {
         </Link>
         <div>
           <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">
-            How to play
+            Practice mode
           </div>
           <div className="font-display text-base font-semibold">
             {song.title}
@@ -172,7 +172,7 @@ export function SongCoach({ song }: { song: Song }) {
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-bg-raised px-3 py-1 text-[11px] text-text-dim">
             <span className="size-1.5 rounded-full bg-accent" />
-            {song.status === "failed" ? "Analysis failed" : "Analyzing…"}
+            {song.status === "failed" ? "Needs analysis review" : "Analysis in progress"}
           </span>
         )}
       </header>

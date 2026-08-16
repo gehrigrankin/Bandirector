@@ -22,6 +22,7 @@ export function UploadForm({ userId }: Props) {
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [stage, setStage] = useState<Stage>("idle");
+  const [songId, setSongId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,30 +36,21 @@ export function UploadForm({ userId }: Props) {
     const bucket = process.env.NEXT_PUBLIC_SONGS_BUCKET ?? "songs";
     const ext = file.name.split(".").pop() ?? "mp3";
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+    let currentSongId = songId;
 
     try {
-      setStage("uploading");
-      setProgressLabel("Uploading…");
-      setProgress(5);
-
-      const { error: uploadErr } = await supabase.storage
-        .from(bucket)
-        .upload(path, file, { cacheControl: "3600", upsert: false });
-      if (uploadErr) throw uploadErr;
-      setProgress(20);
-
-      const { data: song, error: insertErr } = await supabase
-        .from("songs")
-        .insert({
-          title: title.trim(),
-          artist: artist.trim(),
-          audio_storage_path: path,
-          uploaded_by: userId,
-          status: "analyzing",
-        })
-        .select()
-        .single();
-      if (insertErr || !song) throw insertErr ?? new Error("Insert failed");
+      if (!currentSongId) {
+        setStage("uploading");
+        setProgressLabel("Uploading your song…");
+        setProgress(5);
+        const { error: uploadErr } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: "3600", upsert: false });
+        if (uploadErr) throw uploadErr;
+        setProgress(20);
+        const { data: song, error: insertErr } = await supabase.from("songs").insert({ title: title.trim(), artist: artist.trim(), audio_storage_path: path, uploaded_by: userId, status: "analyzing" }).select().single();
+        if (insertErr || !song) throw insertErr ?? new Error("Insert failed");
+        currentSongId = song.id;
+        setSongId(song.id);
+      }
 
       setStage("analyzing");
       setProgressLabel("Analyzing chords and tempo — this runs once per song, then it's saved forever.");
@@ -86,23 +78,26 @@ export function UploadForm({ userId }: Props) {
           bpm: result.bpm ?? null,
           feel: result.feel ?? null,
           analysis_json: {
-            version: 1,
+            version: 2,
             beats: result.beats,
-            chords: result.chords,
+            chords: result.chords.map((chord) => ({ ...chord, verified: false })),
             key: result.key,
             bpm: result.bpm,
             feel: result.feel,
           },
           lyrics_lrc: lyrics,
         })
-        .eq("id", song.id);
+        .eq("id", currentSongId);
       if (updateErr) throw updateErr;
 
       setProgress(100);
       setStage("done");
-      router.push(`/songs/${song.id}/edit`);
+      router.push(`/songs/${currentSongId}`);
     } catch (err) {
       console.error(err);
+      if (currentSongId) {
+        await supabase.from("songs").update({ status: "failed" }).eq("id", currentSongId);
+      }
       setStage("error");
       setError(err instanceof Error ? err.message : "Upload failed");
     }
@@ -182,10 +177,7 @@ export function UploadForm({ userId }: Props) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-text-dim">
-            Runs once per song, then it&apos;s saved forever. Lyrics are matched
-            in the background.
-          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-text-dim">Analysis is a starting point. You&apos;ll get a review screen before this song is ready for a Jam.</p>
         </div>
       ) : null}
 
@@ -198,7 +190,7 @@ export function UploadForm({ userId }: Props) {
         loading={busy}
         disabled={!file || !title || !artist}
       >
-        {busy ? "Uploading & analyzing…" : "Upload & analyze"}
+        {busy ? "Working…" : stage === "error" && songId ? "Retry analysis" : "Import song"}
       </Button>
     </form>
   );

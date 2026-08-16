@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
-export function SignupForm() {
+export function SignupForm({ returnTo = "/library" }: { returnTo?: string }) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,7 +39,7 @@ export function SignupForm() {
       return;
     }
 
-    router.push("/library");
+    router.push(returnTo.startsWith("/") ? returnTo : "/library");
     router.refresh();
   }
 

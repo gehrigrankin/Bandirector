@@ -3,7 +3,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { JamUnavailable } from "@/components/JamUnavailable";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: { searchParams?: { returnTo?: string } }) {
   if (!isSupabaseConfigured()) return <JamUnavailable />;
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-5 py-10 safe-top safe-bottom">
@@ -23,13 +23,13 @@ export default function LoginPage() {
           <div>
             <h1 className="font-display text-[26px] font-bold">Welcome back</h1>
             <p className="mt-1 text-[13px] text-text-muted">
-              Log in to host jams and manage your library.
+              Log in to host jams, sync your songs, and keep your progress.
             </p>
           </div>
         </div>
 
         <div className="rounded-[18px] border border-line bg-bg-raised p-6">
-          <LoginForm />
+          <LoginForm returnTo={searchParams?.returnTo} />
         </div>
 
         <p className="text-center text-[13px] text-text-muted">

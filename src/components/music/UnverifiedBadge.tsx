@@ -9,7 +9,7 @@ export function UnverifiedBadge({ chord }: { chord: ChordHit | null }) {
       className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-dim"
       title="This chord was guessed by the analyzer. Edit to verify it."
     >
-      ML guess
+      {chord.confidence != null ? `${Math.round(chord.confidence * 100)}% estimate` : "Needs review"}
     </span>
   );
 }

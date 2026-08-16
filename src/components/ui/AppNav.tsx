@@ -24,8 +24,8 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: "/", label: "Home", icon: Home, accent: "accent" },
-  { href: "/studio", label: "Studio", icon: Music4, accent: "accent" },
+  { href: "/", label: "Today", icon: Home, accent: "accent" },
+  { href: "/studio", label: "Create", icon: Music4, accent: "accent" },
   {
     href: "/jam",
     label: "Jam",
@@ -35,7 +35,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/library",
-    label: "Library",
+    label: "Songs",
     icon: ListMusic,
     accent: "accent",
     match: ["/library", "/songs"],
@@ -63,7 +63,7 @@ const ACTIVE_TEXT: Record<Accent, string> = {
  * Desktop nav — slim 64px icon rail on medium screens, expands to a labeled
  * sidebar at lg and up.
  */
-export function AppRail({ initials = "GR" }: { initials?: string }) {
+export function AppRail({ initials = "··" }: { initials?: string }) {
   const pathname = usePathname() ?? "/";
   return (
     <nav className="hidden w-16 flex-shrink-0 flex-col items-center gap-1.5 border-r border-line-soft px-3 py-3.5 md:flex lg:w-48 lg:items-stretch">
@@ -103,11 +103,16 @@ export function AppRail({ initials = "GR" }: { initials?: string }) {
         );
       })}
       <div className="flex-1" />
-      <div className="flex items-center justify-center gap-2.5 lg:justify-start lg:px-1">
+      <Link
+        href="/settings"
+        aria-label="Account settings"
+        className="flex items-center justify-center gap-2.5 rounded-[10px] py-1.5 hover:bg-bg-raised lg:justify-start lg:px-1"
+      >
         <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-full bg-bg-higher text-[11px] font-semibold text-text-soft">
           {initials}
         </span>
-      </div>
+        <span className="hidden text-xs text-text-muted lg:block">Account</span>
+      </Link>
     </nav>
   );
 }

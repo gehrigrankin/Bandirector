@@ -5,8 +5,11 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
 const LINKS = [
+  { href: "/", label: "Today" },
   { href: "/studio", label: "Studio" },
   { href: "/jam", label: "Jam" },
+  { href: "/library", label: "Songs" },
+  { href: "/learn", label: "Learn" },
 ];
 
 export function TopNav() {

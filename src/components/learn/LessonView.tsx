@@ -151,6 +151,9 @@ export function LessonView({
             )}
             {STATUS_LABEL[status]}
           </button>
+          <Link href="/studio" className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-accent hover:text-accent-soft">
+            Try this in Studio <ArrowRight className="size-3.5" />
+          </Link>
         </div>
       </div>
 

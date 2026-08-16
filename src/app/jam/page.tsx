@@ -1,73 +1,19 @@
 import Link from "next/link";
+import { ArrowRight, Check, Headphones, QrCode, Users, WandSparkles } from "lucide-react";
 import { JoinRoomForm } from "@/components/room/JoinRoomForm";
 import { AppShell } from "@/components/ui/AppNav";
 import { JamUnavailable } from "@/components/JamUnavailable";
+import { CreateRoomButton } from "@/components/room/CreateRoomButton";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export default function JamPage() {
+export default function JamPage({ searchParams }: { searchParams?: { song?: string } }) {
   if (!isSupabaseConfigured()) return <JamUnavailable />;
-  return (
-    <AppShell>
-      <div className="relative flex min-h-full flex-col items-center justify-center px-5 py-12 md:px-10">
-        <div className="pointer-events-none absolute -top-32 left-1/2 h-[400px] w-[600px] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(63,217,197,0.10),transparent_70%)]" />
-
-        <div className="text-center">
-          <h1 className="font-display text-[32px] font-bold tracking-[-0.02em] md:text-[38px]">
-            Jam Together
-          </h1>
-          <p className="mt-2 text-sm text-text-muted md:text-[15px]">
-            Upload a song. Everyone plays their part.
-          </p>
-        </div>
-
-        <div className="mt-8 grid w-full max-w-[940px] gap-5 md:mt-10 md:grid-cols-2">
-          <div className="rounded-[20px] border border-line bg-bg-raised p-6 md:p-7">
-            <h2 className="font-display text-xl font-semibold">Join a jam</h2>
-            <p className="mt-1.5 text-[13px] text-text-muted">
-              Enter the 6-letter room code from your host.
-            </p>
-            <div className="mt-5">
-              <JoinRoomForm />
-            </div>
-          </div>
-
-          <div className="flex flex-col rounded-[20px] border border-line bg-bg-raised p-6 md:p-7">
-            <h2 className="font-display text-xl font-semibold">Host a jam</h2>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-text-muted">
-              Sign in to upload songs, pick what the band plays, and drive the
-              transport for everyone.
-            </p>
-            <ul className="mt-4 space-y-2 text-xs text-text-muted">
-              <li className="flex items-center gap-2.5">
-                <span className="size-[5px] rounded-full bg-jam" />
-                Chords, tempo &amp; key analyzed in your browser
-              </li>
-              <li className="flex items-center gap-2.5">
-                <span className="size-[5px] rounded-full bg-jam" />
-                Synced lyrics found automatically
-              </li>
-            </ul>
-            <div className="mt-auto flex gap-2.5 pt-5">
-              <Link
-                href="/signup"
-                className="flex h-12 flex-1 items-center justify-center rounded-xl bg-jam text-sm font-semibold text-black transition-colors hover:bg-jam-soft"
-              >
-                Create account
-              </Link>
-              <Link
-                href="/login"
-                className="flex h-12 flex-1 items-center justify-center rounded-xl border border-line text-sm font-semibold text-text transition-colors hover:bg-bg-higher"
-              >
-                Log in
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <p className="mt-9 text-xs text-text-dim">
-          Upload-only. No scraping, no YouTube. Your jams stay yours.
-        </p>
-      </div>
-    </AppShell>
-  );
+  return <AppShell><main className="mx-auto min-h-full max-w-5xl px-5 py-8 md:px-10 md:py-12">
+    <header className="max-w-2xl"><p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-jam">Live rehearsal room</p><h1 className="mt-2 font-display text-4xl font-bold tracking-[-0.03em]">Play together, without losing the beat.</h1><p className="mt-3 text-sm leading-relaxed text-text-muted md:text-base">Everyone sees their part. The host drives the song. The room keeps the timing together.</p></header>
+    <section className="mt-8 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="rounded-3xl border border-jam/25 bg-jam/[0.05] p-5 md:p-7"><div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-jam/15 text-jam"><Users className="size-5" /></span><div><h2 className="font-display text-xl font-bold">Join a room</h2><p className="text-xs text-text-muted">Use the six-character code from your host.</p></div></div><div className="mt-6"><JoinRoomForm /></div><div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-text-dim"><QrCode className="size-3.5" /> QR invite support fits naturally on mobile</div></div>
+      <div className="rounded-3xl border border-line bg-bg-raised p-5 md:p-7"><div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-accent/15 text-accent"><WandSparkles className="size-5" /></span><div><h2 className="font-display text-xl font-bold">Start a rehearsal</h2><p className="text-xs text-text-muted">Choose the song, invite your people, then press play.</p></div></div>{searchParams?.song ? <div className="mt-5 rounded-xl border border-jam/25 bg-jam/[0.06] px-3.5 py-3 text-xs text-jam">A song is ready to bring into this room.</div> : null}<div className="mt-6 grid gap-2.5">{["Pick a song or setlist", "Assign instruments and roles", "Run a quick audio check", "Start the shared stage"].map((step) => <div key={step} className="flex items-center gap-3 rounded-xl border border-line-soft bg-bg-card px-3.5 py-3 text-sm"><span className="flex size-5 items-center justify-center rounded-full bg-jam/15 text-jam"><Check className="size-3" /></span>{step}</div>)}</div><div className="mt-6 flex flex-wrap items-center gap-3"><CreateRoomButton songId={searchParams?.song} /><Link href="/library" className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-4 text-sm font-semibold hover:bg-bg-higher">Choose a song <ArrowRight className="size-4" /></Link></div></div>
+    </section>
+    <section className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-line-soft bg-bg-card p-4"><Headphones className="size-4 text-jam" /><p className="mt-3 text-sm font-semibold">Role-aware stage</p><p className="mt-1 text-xs leading-relaxed text-text-muted">Guitarists see shapes, bassists see roots, vocalists see entrances.</p></div><div className="rounded-2xl border border-line-soft bg-bg-card p-4"><Users className="size-4 text-jam" /><p className="mt-3 text-sm font-semibold">Human-friendly lobby</p><p className="mt-1 text-xs leading-relaxed text-text-muted">See who is ready and what everyone is playing before you start.</p></div><div className="rounded-2xl border border-line-soft bg-bg-card p-4"><WandSparkles className="size-4 text-jam" /><p className="mt-3 text-sm font-semibold">Rehearse the hard part</p><p className="mt-1 text-xs leading-relaxed text-text-muted">Loop a chorus or mark a trouble spot for your next practice.</p></div></section>
+  </main></AppShell>;
 }

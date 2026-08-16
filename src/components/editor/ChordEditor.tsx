@@ -40,6 +40,7 @@ export function ChordEditor({ song }: Props) {
   const [playing, setPlaying] = useState(false);
   const [positionSec, setPositionSec] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
@@ -140,16 +141,18 @@ export function ChordEditor({ song }: Props) {
 
   async function save() {
     setSaving(true);
+    setSaveState("idle");
     const nextAnalysis: AnalysisJson = {
       ...(song.analysis_json ?? { beats: [], chords: [], version: 1 }),
       chords,
       version: (song.analysis_json?.version ?? 1) + 1,
     };
-    await supabase
+    const { error } = await supabase
       .from("songs")
       .update({ analysis_json: nextAnalysis })
       .eq("id", song.id);
     setSaving(false);
+    setSaveState(error ? "error" : "saved");
   }
 
   const totalSec = Math.max(duration, chords.at(-1)?.time ?? 0) + 4;
@@ -202,9 +205,10 @@ export function ChordEditor({ song }: Props) {
           <Plus className="size-4" />
           <span className="hidden sm:inline">Add chord</span>
         </Button>
+        {saveState === "saved" ? <span className="text-xs text-ok">Saved</span> : saveState === "error" ? <span className="text-xs text-danger">Couldn&apos;t save</span> : null}
         <Button size="sm" onClick={save} loading={saving}>
           <Save className="size-4" />
-          <span className="hidden sm:inline">Save for everyone</span>
+          <span className="hidden sm:inline">Save corrections</span>
           <span className="sm:hidden">Save</span>
         </Button>
       </div>
