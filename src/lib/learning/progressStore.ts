@@ -24,6 +24,14 @@ export function loadLocal(userId: string | null): Record<string, TopicStatus> {
   }
 }
 
+/** Signed-in users inherit progress made before login on the same device. */
+export function loadLocalWithGuest(
+  userId: string | null,
+): Record<string, TopicStatus> {
+  if (userId === null) return loadLocal(null);
+  return { ...loadLocal(null), ...loadLocal(userId) };
+}
+
 export function saveLocal(
   userId: string | null,
   progress: Record<string, TopicStatus>,
@@ -32,6 +40,14 @@ export function saveLocal(
     localStorage.setItem(localKey(userId), JSON.stringify(progress));
   } catch {
     // storage full or unavailable — nothing useful to do
+  }
+}
+
+export function clearLocal(userId: string | null) {
+  try {
+    localStorage.removeItem(localKey(userId));
+  } catch {
+    // storage unavailable — the stale mirror is harmless
   }
 }
 

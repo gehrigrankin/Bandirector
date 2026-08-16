@@ -5,6 +5,7 @@ Bandirector is a multi-part music app. The parts shipping today:
 - **Songwriter Studio** (`/studio`) — a chord + loop workstation. Pick a root and
   quality, choose a playing style for an instrument, loop it, and lock loops to
   layer a full arrangement of real (soundfont) instruments under one transport.
+  The current arrangement autosaves to the device and resumes after a refresh.
 - **Jam Together** (`/jam`) — the real-time jam: a host uploads an MP3, the
   browser analyzes chords/tempo/key, and everyone picks their instrument + style
   and sees their part synced to a timeline.
@@ -14,7 +15,7 @@ Bandirector is a multi-part music app. The parts shipping today:
   piano. Every topic is a full lesson page with interactive diagrams you can
   hear (chord boxes, fretboard, piano keys, play-along sequences), practice
   steps, and a checkpoint, with not started → learning → known progress
-  tracking.
+  tracking. An account is optional; signed-out progress stays on the device.
 
 Bandirector installs as a phone app (PWA — "Add to Home Screen" / the install
 prompt) and takes **MIDI input**: plug a keyboard into your phone or computer

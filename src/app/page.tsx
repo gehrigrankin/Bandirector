@@ -4,6 +4,7 @@ import { AppShell } from "@/components/ui/AppNav";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getInitials } from "@/lib/utils/initials";
+import { StudioResumeLink } from "@/components/studio/StudioResumeLink";
 
 export const dynamic = "force-dynamic";
 
@@ -79,15 +80,7 @@ export default async function HubPage() {
                 Open Studio
                 <ArrowRight className="size-[15px]" strokeWidth={2} />
               </Link>
-              <span className="inline-flex items-center gap-2 rounded-xl border border-line px-3.5 py-2 text-xs text-text-muted">
-                Continue{" "}
-                <span className="font-display font-semibold text-text">
-                  Untitled loop
-                </span>
-                <span className="font-mono text-[11px] text-accent">
-                  C·G·Am·F
-                </span>
-              </span>
+              <StudioResumeLink />
             </div>
           </div>
 

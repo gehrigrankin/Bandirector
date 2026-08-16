@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/ui/AppNav";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -49,7 +48,13 @@ export default async function LearnPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) {
+    return (
+      <LearnLayout>
+        <IcebergCourse userId={null} initialProgress={{}} />
+      </LearnLayout>
+    );
+  }
 
   const { data: rows } = await supabase
     .from("learning_progress")

@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getInitials } from "@/lib/utils/initials";
@@ -57,18 +57,19 @@ export default async function TopicPage({
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) redirect("/login");
-    userId = user.id;
-    initials = getInitials(user.user_metadata?.display_name ?? user.email);
+    if (user) {
+      userId = user.id;
+      initials = getInitials(user.user_metadata?.display_name ?? user.email);
 
-    const { data: row } = await supabase
-      .from("learning_progress")
-      .select("status")
-      .eq("user_id", user.id)
-      .eq("topic_id", topic.id)
-      .maybeSingle();
-    if (row?.status === "learning" || row?.status === "known")
-      initialStatus = row.status;
+      const { data: row } = await supabase
+        .from("learning_progress")
+        .select("status")
+        .eq("user_id", user.id)
+        .eq("topic_id", topic.id)
+        .maybeSingle();
+      if (row?.status === "learning" || row?.status === "known")
+        initialStatus = row.status;
+    }
   }
 
   return (

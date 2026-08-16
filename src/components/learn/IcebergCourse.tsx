@@ -24,7 +24,12 @@ import {
   type Track,
 } from "@/lib/learning/curriculum";
 import { DEPTH_ACCENT, DEPTH_BG } from "@/lib/learning/depth";
-import { loadLocal, saveLocal } from "@/lib/learning/progressStore";
+import {
+  clearLocal,
+  loadLocal,
+  loadLocalWithGuest,
+  saveLocal,
+} from "@/lib/learning/progressStore";
 import { cn } from "@/lib/utils/cn";
 
 type DisplayStatus = TopicStatus | "none";
@@ -64,15 +69,20 @@ export function IcebergCourse({
   // Merge the local mirror in on mount, and push any local-only entries up to
   // the DB (no-op when the table doesn't exist yet — we just flag local mode).
   useEffect(() => {
-    const local = loadLocal(userId);
+    const guest = userId !== null ? loadLocal(null) : {};
+    const local = loadLocalWithGuest(userId);
     const localOnly = Object.entries(local).filter(
       ([id]) => !(id in initialProgress),
     );
-    if (localOnly.length === 0) return;
-
-    setProgress((cur) => ({ ...Object.fromEntries(localOnly), ...cur }));
+    if (localOnly.length > 0) {
+      setProgress((cur) => ({ ...Object.fromEntries(localOnly), ...cur }));
+    }
 
     if (!supabase || userId === null) return;
+    if (localOnly.length === 0) {
+      if (Object.keys(guest).length > 0) clearLocal(null);
+      return;
+    }
     void supabase
       .from("learning_progress")
       .upsert(
@@ -83,7 +93,14 @@ export function IcebergCourse({
         })),
       )
       .then(({ error }) => {
-        if (error) setDbOk(false);
+        if (error) {
+          setDbOk(false);
+          return;
+        }
+
+        // Preserve a per-account mirror before removing the pre-login copy.
+        saveLocal(userId, { ...local, ...initialProgress });
+        if (Object.keys(guest).length > 0) clearLocal(null);
       });
   }, [userId, initialProgress, supabase]);
 

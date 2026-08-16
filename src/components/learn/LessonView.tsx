@@ -15,7 +15,10 @@ import type { Topic, Track } from "@/lib/learning/curriculum";
 import { LESSONS } from "@/lib/learning/lessons";
 import { TOPIC_VISUALS } from "@/lib/learning/visuals";
 import { DEPTH_ACCENT, DEPTH_BG } from "@/lib/learning/depth";
-import { loadLocal, saveLocalTopic } from "@/lib/learning/progressStore";
+import {
+  loadLocalWithGuest,
+  saveLocalTopic,
+} from "@/lib/learning/progressStore";
 import { LessonVisuals } from "@/components/learn/visuals/LessonVisuals";
 import { cn } from "@/lib/utils/cn";
 
@@ -71,7 +74,7 @@ export function LessonView({
   // The device may know something the server didn't (table missing, no DB).
   useEffect(() => {
     if (initialStatus !== "none") return;
-    const local = loadLocal(userId)[topic.id];
+    const local = loadLocalWithGuest(userId)[topic.id];
     if (local) setStatus(local);
   }, [userId, topic.id, initialStatus]);
 
