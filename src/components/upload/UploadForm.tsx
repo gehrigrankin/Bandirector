@@ -87,7 +87,7 @@ export function UploadForm({ userId }: Props) {
           },
           lyrics_lrc: lyrics,
         })
-        .eq("id", currentSongId);
+        .eq("id", currentSongId!);
       if (updateErr) throw updateErr;
 
       setProgress(100);
