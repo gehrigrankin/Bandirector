@@ -31,7 +31,7 @@ export function JoinRoomForm() {
         onClick={() => inputRef.current?.focus()}
         role="presentation"
       >
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center gap-1.5 sm:gap-2">
           {SLOTS.map((i) => {
             const char = code[i];
             const active = focused && i === code.length;
@@ -39,7 +39,7 @@ export function JoinRoomForm() {
               <div
                 key={i}
                 className={cn(
-                  "flex h-16 w-[52px] items-center justify-center rounded-xl border font-mono text-[26px] font-semibold transition-colors",
+                  "flex h-14 min-w-0 max-w-[52px] flex-1 items-center justify-center rounded-xl border font-mono text-[24px] font-semibold transition-colors sm:h-16 sm:text-[26px]",
                   char
                     ? "border-jam/40 bg-[#0f1a19] text-jam"
                     : active

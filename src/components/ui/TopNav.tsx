@@ -15,11 +15,13 @@ const LINKS = [
 export function TopNav() {
   const pathname = usePathname() ?? "/";
   return (
-    <nav className="flex items-center justify-between border-b border-line px-4 py-3 safe-top">
-      <Link href="/" className="text-lg font-bold tracking-tight">
+    <nav className="flex items-end justify-between border-b border-line px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+      <Link href="/" className="flex items-center gap-2.5 font-display text-[15px] font-bold tracking-tight">
+        <span className="flex size-8 items-center justify-center rounded-[10px] bg-accent text-base text-black">B</span>
         Bandirector
       </Link>
-      <div className="flex items-center gap-1">
+      <Link href="/studio" className="inline-flex h-9 items-center rounded-xl border border-line px-3 text-xs font-semibold text-accent xl:hidden">Open Studio</Link>
+      <div className="hidden items-center gap-1 xl:flex">
         {LINKS.map(({ href, label }) => (
           <Link
             key={href}

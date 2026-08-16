@@ -231,7 +231,7 @@ export function RoomView({ room, initialSong, isHost, currentUserId }: Props) {
           <Link
             href="/"
             aria-label="Home"
-            className="text-text-dim hover:text-text md:hidden"
+            className="text-text-dim hover:text-text xl:hidden"
           >
             ←
           </Link>
@@ -283,7 +283,7 @@ export function RoomView({ room, initialSong, isHost, currentUserId }: Props) {
           </div>
 
           {/* band panel (desktop) */}
-          <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l border-line-soft p-4 lg:flex">
+          <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l border-line-soft p-4 xl:flex">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
               Band · {participants.length}
             </div>
@@ -349,7 +349,7 @@ export function RoomView({ room, initialSong, isHost, currentUserId }: Props) {
         </div>
 
         {/* participants (mobile / tablet) */}
-        <div className="border-t border-line-soft bg-[#0d0d11] px-4 py-2.5 lg:hidden">
+        <div className="border-t border-line-soft bg-[#0d0d11] px-4 py-2.5 xl:hidden">
           <ParticipantList
             participants={participants}
             currentPid={participantId}

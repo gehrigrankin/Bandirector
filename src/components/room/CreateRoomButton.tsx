@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
-export function CreateRoomButton({ songId }: { songId?: string }) {
+export function CreateRoomButton({ songId, className }: { songId?: string; className?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +26,8 @@ export function CreateRoomButton({ songId }: { songId?: string }) {
   }
 
   return (
-    <div>
-      <Button onClick={create} loading={loading} size="md"><Play className="size-4" />New room</Button>
+    <div className={className}>
+      <Button className="w-full" onClick={create} loading={loading} size="md"><Play className="size-4" />New room</Button>
       {error ? <p className="mt-2 max-w-[180px] text-right text-[11px] text-danger">{error}</p> : null}
     </div>
   );

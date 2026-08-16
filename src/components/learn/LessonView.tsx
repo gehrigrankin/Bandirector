@@ -103,7 +103,7 @@ export function LessonView({
   const href = (t: TopicLink) => `/learn/${t.id}?track=${track}`;
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-5 py-6 md:px-8 md:py-8">
+    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-5 px-4 py-5 sm:px-6 md:gap-6 md:px-8 md:py-8">
       {/* header */}
       <div>
         <Link
@@ -114,7 +114,7 @@ export function LessonView({
           The iceberg
         </Link>
         <div
-          className="rounded-2xl border border-line p-5 md:p-6"
+          className="rounded-2xl border border-line p-4 sm:p-5 md:p-6"
           style={{ background: bg, borderLeft: `3px solid ${accent}` }}
         >
           <div
@@ -124,7 +124,7 @@ export function LessonView({
             Depth {depth} · {tierName}
             {topic.kind === "theory" ? " · theory, counts for both tracks" : ""}
           </div>
-          <h1 className="mt-1.5 font-display text-[26px] font-bold leading-tight md:text-3xl">
+          <h1 className="mt-1.5 font-display text-[25px] font-bold leading-tight sm:text-[28px] md:text-3xl">
             {topic.title}
           </h1>
           <p className="mt-1.5 text-[13px] text-text-muted">{topic.summary}</p>
@@ -247,7 +247,7 @@ export function LessonView({
       </div>
 
       {/* prev / next */}
-      <div className="mt-2 flex items-stretch gap-3 border-t border-line-soft pt-5">
+      <div className="mt-1 grid grid-cols-2 gap-2.5 border-t border-line-soft pt-5 sm:gap-3">
         {prev ? (
           <Link
             href={href(prev)}

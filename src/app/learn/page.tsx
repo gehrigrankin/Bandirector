@@ -19,21 +19,19 @@ function LearnLayout({
 }) {
   return (
     <AppShell initials={initials}>
-      <div className="mx-auto flex min-h-full max-w-3xl flex-col px-5 py-7 md:px-8 md:py-9">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-display text-2xl font-bold md:text-[28px]">
+      <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 py-5 sm:px-6 md:px-8 md:py-8">
+        <div>
+          <h1 className="font-display text-[30px] font-bold leading-none tracking-[-0.03em] sm:text-4xl">
             Learn
           </h1>
-          <span className="text-xs text-text-muted">
-            The music iceberg — everything from first chords to the trench.
-          </span>
+          <p className="mt-2 text-[13px] text-text-muted sm:text-sm">Pick an instrument. Find the next thing you can use.</p>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <Link href="/library" className="group rounded-2xl border border-line-soft bg-bg-card p-4 transition-colors hover:bg-bg-raised"><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">Learn through a song</p><p className="mt-2 text-sm font-semibold">Find your next practice target <ArrowRight className="ml-1 inline size-3.5 transition-transform group-hover:translate-x-1" /></p></Link>
-          <Link href="/studio" className="group rounded-2xl border border-line-soft bg-bg-card p-4 transition-colors hover:bg-bg-raised"><p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim"><Music4 className="size-3.5 text-accent" /> Use it immediately</p><p className="mt-2 text-sm font-semibold">Turn a concept into a progression <ArrowRight className="ml-1 inline size-3.5 transition-transform group-hover:translate-x-1" /></p></Link>
+        <div className="-mx-4 mt-5 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:px-0">
+          <Link href="/library" className="group w-[76vw] max-w-[300px] shrink-0 snap-start rounded-2xl border border-line-soft bg-bg-card p-4 sm:w-auto sm:max-w-none"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim">Use a song</p><p className="mt-2 text-sm font-semibold">Find your next practice target <ArrowRight className="ml-1 inline size-3.5" /></p></Link>
+          <Link href="/studio" className="group w-[76vw] max-w-[300px] shrink-0 snap-start rounded-2xl border border-line-soft bg-bg-card p-4 sm:w-auto sm:max-w-none"><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim"><Music4 className="size-3.5 text-accent" /> Try it now</p><p className="mt-2 text-sm font-semibold">Turn this idea into a progression <ArrowRight className="ml-1 inline size-3.5" /></p></Link>
         </div>
-        <div className="mt-6">{children}</div>
+        <div className="mt-5 sm:mt-6">{children}</div>
       </div>
     </AppShell>
   );

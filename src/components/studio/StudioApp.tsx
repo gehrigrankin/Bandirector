@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Check, Play, Square, SkipBack, Volume2 } from "lucide-react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
 import {
@@ -53,7 +54,7 @@ import { GrooveCards, type GrooveOption } from "@/components/studio/GrooveCards"
 import { HandsKeyboard } from "@/components/studio/HandsKeyboard";
 import { MidiPanel } from "@/components/studio/MidiPanel";
 import { TransportBar } from "@/components/studio/TransportBar";
-import { Lock, X } from "lucide-react";
+import { ChevronLeft, Lock, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import {
   loadStudioProject,
@@ -747,7 +748,7 @@ export function StudioApp() {
 
   const grooveArea = (
     <div className="flex flex-col gap-3">
-      <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-3 xl:grid-cols-[1fr_320px]">
         <GrooveCards
           options={grooveOptions}
           selectedId={selectedGrooveId}
@@ -955,7 +956,7 @@ export function StudioApp() {
       </div>
     ) : stepTab === "groove" ? (
       <div className="flex flex-col gap-3">
-        <div className="lg:hidden">
+        <div className="xl:hidden">
           <InstrumentPicker
             value={selection.instrumentId}
             onSelect={selectInstrument}
@@ -972,7 +973,7 @@ export function StudioApp() {
     ) : (
       <div className="flex flex-col gap-4">
         {soundControls}
-        <div className="lg:hidden">
+        <div className="xl:hidden">
           <div className="mb-2 flex items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
               Layers
@@ -1133,7 +1134,7 @@ export function StudioApp() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg">
       {/* ── Desktop transport toolbar ── */}
-      <div className="hidden h-16 flex-shrink-0 items-center gap-4 border-b border-line-soft px-5 lg:flex">
+      <div className="hidden h-16 flex-shrink-0 items-center gap-4 border-b border-line-soft px-5 xl:flex">
         <div>
           <div className={railLabel}>Songwriter Studio</div>
           <div className="mt-0.5 font-display text-base font-semibold">Untitled loop</div>
@@ -1233,7 +1234,7 @@ export function StudioApp() {
       </div>
 
       {/* ── Desktop 3-panel (3a) ── */}
-      <div className="hidden min-h-0 flex-1 lg:flex">
+      <div className="hidden min-h-0 flex-1 xl:flex">
         {/* instruments */}
         <aside className="scrollbar-thin flex w-56 shrink-0 flex-col gap-2 overflow-y-auto border-r border-line-soft p-3">
           <div className={`${railLabel} px-2`}>Instrument</div>
@@ -1251,11 +1252,14 @@ export function StudioApp() {
       </div>
 
       {/* ── Mobile / tablet: focus tabs (3b) ── */}
-      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
-        <div className="flex flex-shrink-0 items-center gap-2 px-4 pt-4">
-          <div>
+      <div className="flex min-h-0 flex-1 flex-col xl:hidden">
+        <div className="flex flex-shrink-0 items-center gap-2 px-3.5 pb-1 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-5">
+          <Link href="/" aria-label="Leave Studio" className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line-soft text-text-muted active:bg-bg-higher">
+            <ChevronLeft className="size-5" />
+          </Link>
+          <div className="min-w-0">
             <div className={railLabel}>Songwriter Studio</div>
-            <div className="mt-0.5 font-display text-[17px] font-semibold">Untitled loop</div>
+            <div className="mt-0.5 truncate font-display text-[16px] font-semibold sm:text-[17px]">Untitled loop</div>
             <div
               className={cn(
                 "mt-0.5 text-[10px]",
@@ -1271,7 +1275,7 @@ export function StudioApp() {
                   : "Couldn’t save locally"}
             </div>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto shrink-0">
             <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
           </div>
         </div>

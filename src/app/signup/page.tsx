@@ -6,11 +6,11 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 export default function SignupPage({ searchParams }: { searchParams?: { returnTo?: string } }) {
   if (!isSupabaseConfigured()) return <JamUnavailable />;
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-5 py-10 safe-top safe-bottom">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10 safe-top safe-bottom sm:px-5">
       <div className="pointer-events-none absolute -top-40 left-1/2 h-[360px] w-[500px] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(245,165,36,0.12),transparent_70%)]" />
       <Link
         href="/"
-        className="absolute left-5 top-5 text-sm text-text-muted hover:text-text"
+        className="absolute left-4 top-[calc(1rem+env(safe-area-inset-top))] inline-flex h-10 items-center text-sm text-text-muted sm:left-5"
       >
         ← Back
       </Link>
@@ -28,7 +28,7 @@ export default function SignupPage({ searchParams }: { searchParams?: { returnTo
           </div>
         </div>
 
-        <div className="rounded-[18px] border border-line bg-bg-raised p-6">
+        <div className="rounded-[18px] border border-line bg-bg-raised p-5 sm:p-6">
           <SignupForm returnTo={searchParams?.returnTo} />
         </div>
 

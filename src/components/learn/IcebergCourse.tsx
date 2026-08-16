@@ -153,11 +153,11 @@ export function IcebergCourse({
   const pct = total === 0 ? 0 : Math.round((known / total) * 100);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 sm:gap-5">
       {/* track switcher + overall progress */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-line bg-bg-raised p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-xl border border-line-soft bg-bg p-1">
+      <div className="flex flex-col gap-3.5 rounded-2xl border border-line bg-bg-raised p-4 sm:gap-4 sm:p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 rounded-xl border border-line-soft bg-bg p-1">
             {TRACKS.map((t) => {
               const Icon = t.id === "guitar" ? Guitar : Piano;
               const active = track === t.id;
@@ -166,7 +166,7 @@ export function IcebergCourse({
                   key={t.id}
                   onClick={() => setTrack(t.id)}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold transition-colors",
+                    "flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-colors",
                     active
                       ? "bg-accent text-black"
                       : "text-text-muted hover:text-text",
@@ -178,12 +178,12 @@ export function IcebergCourse({
               );
             })}
           </div>
-          <div className="ml-auto text-right">
+          <div className="shrink-0 text-right">
             <div className="font-mono text-lg font-semibold text-accent">
               {pct}%
             </div>
-            <div className="text-[11px] text-text-muted">
-              {known} known · {learning} learning · {total} topics
+            <div className="text-[10px] text-text-muted sm:text-[11px]">
+              {known}/{total} known
             </div>
           </div>
         </div>
@@ -193,7 +193,7 @@ export function IcebergCourse({
             style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="text-[11px] text-text-dim">
+        <div className="hidden text-[11px] text-text-dim sm:block">
           Tap the circle to mark a topic: not started → learning → known. Open
           a topic for its full lesson — diagrams you can hear, practice steps,
           and the checkpoint. Theory topics count for both instruments.
@@ -209,7 +209,7 @@ export function IcebergCourse({
       </div>
 
       {/* the iceberg */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5 sm:gap-3">
         {ICEBERG.map((tier, i) => (
           <div key={tier.id} className="flex flex-col gap-3">
             {i === 1 ? (
@@ -256,20 +256,20 @@ function TierCard({
       style={{ background: DEPTH_BG[tier.depth - 1] }}
     >
       <div
-        className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line-soft px-5 py-4"
+        className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 border-b border-line-soft px-4 py-3.5 sm:flex sm:flex-wrap sm:items-baseline sm:px-5 sm:py-4"
         style={{ borderLeft: `3px solid ${accent}` }}
       >
         <span
-          className="font-mono text-[11px] uppercase tracking-[0.14em]"
+          className="font-mono text-[10px] uppercase tracking-[0.14em] sm:text-[11px]"
           style={{ color: accent }}
         >
           Depth {tier.depth}
         </span>
-        <h2 className="font-display text-lg font-bold">{tier.name}</h2>
-        <span className="text-[11px] text-text-muted">{tier.tagline}</span>
+        <h2 className="col-start-1 row-start-2 font-display text-base font-bold sm:text-lg">{tier.name}</h2>
+        <span className="hidden text-[11px] text-text-muted sm:inline">{tier.tagline}</span>
         <span
           className={cn(
-            "ml-auto flex items-center gap-1.5 font-mono text-[12px]",
+            "col-start-2 row-span-2 row-start-1 ml-auto flex items-center gap-1.5 font-mono text-[12px]",
             done ? "text-ok" : "text-text-muted",
           )}
         >
@@ -286,7 +286,7 @@ function TierCard({
               key={topic.id}
               className="border-b border-line-soft/60 last:border-b-0"
             >
-              <div className="flex items-start gap-3 px-5 py-3">
+              <div className="flex items-start gap-3 px-3.5 py-3 sm:px-5">
                 <button
                   onClick={() => onCycle(topic)}
                   aria-label={`Status: ${status}. Tap to change.`}
@@ -298,7 +298,7 @@ function TierCard({
                         : "Known — tap to reset"
                   }
                   className={cn(
-                    "mt-0.5 flex size-6 flex-shrink-0 items-center justify-center rounded-full border transition-colors",
+                    "flex size-9 flex-shrink-0 items-center justify-center rounded-full border transition-colors",
                     status === "known"
                       ? "border-ok bg-ok text-black"
                       : status === "learning"
@@ -307,7 +307,7 @@ function TierCard({
                   )}
                 >
                   {status === "known" ? (
-                    <Check className="size-3.5" strokeWidth={2.5} />
+                      <Check className="size-4" strokeWidth={2.5} />
                   ) : status === "learning" ? (
                     <Circle className="size-2.5 fill-current" />
                   ) : null}
@@ -320,7 +320,7 @@ function TierCard({
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={cn(
-                        "text-[13.5px] font-semibold transition-colors group-hover:text-text",
+                        "text-[14px] font-semibold transition-colors group-hover:text-text",
                         status === "known" && "text-text-muted line-through decoration-ok/50",
                       )}
                     >
@@ -341,7 +341,7 @@ function TierCard({
                       strokeWidth={1.8}
                     />
                   </div>
-                  <div className="mt-0.5 text-[12px] text-text-muted">
+                  <div className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-text-muted">
                     {topic.summary}
                   </div>
                 </Link>
