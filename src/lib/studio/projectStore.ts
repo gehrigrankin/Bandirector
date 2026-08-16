@@ -1,6 +1,20 @@
 import { z } from "zod";
 
 const STORAGE_KEY = "bandirector.studio.autosave.v1";
+const TONICS = new Set([
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+]);
 
 const instrumentIdSchema = z.enum([
   "acoustic_guitar",
@@ -73,20 +87,7 @@ const projectSchema = z.object({
   masterVolume: z.number().min(0).max(1),
   swing: z.number().min(0).max(1),
   humanize: z.number().min(0).max(1),
-  tonic: z.enum([
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
-  ]),
+  tonic: z.string().refine((value) => TONICS.has(value), "Invalid tonic"),
   mode: z.enum(["major", "minor"]),
   chordQuality: z.enum(["triad", "7th", "9th"]),
   progression: z
