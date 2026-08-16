@@ -640,7 +640,7 @@ export function StudioApp() {
             type="button"
             onClick={() => setChordQuality(c)}
             className={cn(
-              "px-3 py-1.5 text-[11px] font-semibold",
+              "min-h-10 px-3 text-[11px] font-semibold",
               chordQuality === c ? "bg-accent text-black" : "text-text-muted",
             )}
           >
@@ -788,6 +788,16 @@ export function StudioApp() {
 
   const soundControls = (
     <div className="flex flex-col gap-3">
+      <div className="xl:hidden">
+        <Slider
+          label="Output"
+          value={masterVolume}
+          display={`${Math.round(masterVolume * 100)}%`}
+          min={0}
+          max={1}
+          onChange={setMasterVolume}
+        />
+      </div>
       <Slider
         label="Note length"
         value={selection.noteLength}
@@ -941,6 +951,103 @@ export function StudioApp() {
           </div>
         </button>
       ))}
+    </div>
+  );
+
+  const mobileTabsEl = (
+    <div className="grid grid-cols-3 gap-1 rounded-2xl bg-bg-raised p-1">
+      {(
+        [
+          ["chords", "Chords"],
+          ["groove", "Groove"],
+          ["sound", "Sound"],
+        ] as const
+      ).map(([id, label]) => {
+        const disabled = !hasChords && id !== "chords";
+        return (
+          <button
+            key={id}
+            type="button"
+            disabled={disabled}
+            onClick={() => setStepTab(id)}
+            aria-pressed={stepTab === id}
+            className={cn(
+              "min-w-0 rounded-xl px-2 py-2.5 text-sm font-semibold transition-colors",
+              stepTab === id
+                ? "bg-accent text-black shadow-glow-accent"
+                : "text-text-muted active:bg-bg-higher",
+              disabled && "cursor-not-allowed opacity-35",
+            )}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const mobileChordContent = (
+    <div className="flex flex-col gap-6">
+      {!hasChords ? (
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+            New loop · {tonic} {mode === "major" ? "major" : "minor"}
+          </p>
+          <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight">
+            What do you want to hear?
+          </h1>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-text-muted">
+            Start with a familiar progression or choose one chord. Groove and
+            sound controls unlock as soon as the loop has something to play.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line-soft bg-bg-card p-3.5">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim">
+              Editing bar {editIndex + 1}
+            </div>
+            <div className="mt-1 font-display text-lg font-semibold text-accent">
+              {progressionLabels[editIndex]}
+            </div>
+          </div>
+          {colorSeg}
+        </div>
+      )}
+
+      {hasChords ? (
+        <>
+          <DiatonicChords
+            tonic={tonic}
+            mode={mode}
+            ext={chordQuality}
+            current={activeStep}
+            onPick={pickChord}
+            layout="grid"
+            title={`Replace bar ${editIndex + 1}`}
+          />
+          <Suggestions onApply={applyTemplate} layout="grid" />
+          <StylePresets onApply={applyStyle} layout="grid" />
+        </>
+      ) : (
+        <>
+          <Suggestions onApply={applyTemplate} layout="grid" />
+          <DiatonicChords
+            tonic={tonic}
+            mode={mode}
+            ext={chordQuality}
+            current={{ root: "", quality: "" }}
+            onPick={pickChord}
+            layout="grid"
+            title="Or choose your first chord"
+          />
+        </>
+      )}
+
+      <div className="hidden rounded-2xl border border-line-soft bg-bg-card px-4 py-3 text-xs leading-relaxed text-text-muted md:block xl:hidden">
+        MIDI capture is available on supported desktop and Android browsers.
+        Everything else in Studio works here on iPhone and iPad.
+      </div>
     </div>
   );
 
@@ -1252,22 +1359,28 @@ export function StudioApp() {
       </div>
 
       {/* ── Mobile / tablet: focus tabs (3b) ── */}
-      <div className="flex min-h-0 flex-1 flex-col xl:hidden">
-        <div className="flex flex-shrink-0 items-center gap-2 px-3.5 pb-1 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-5">
-          <Link href="/" aria-label="Leave Studio" className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line-soft text-text-muted active:bg-bg-higher">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:hidden">
+        <div className="flex flex-shrink-0 items-center gap-2 border-b border-line-soft px-3.5 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] sm:px-5">
+          <Link
+            href="/"
+            aria-label="Leave Studio"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line-soft text-text-muted active:bg-bg-higher"
+          >
             <ChevronLeft className="size-5" />
           </Link>
           <div className="min-w-0">
-            <div className={railLabel}>Songwriter Studio</div>
-            <div className="mt-0.5 truncate font-display text-[16px] font-semibold sm:text-[17px]">Untitled loop</div>
+            <div className="truncate font-display text-[16px] font-semibold sm:text-[17px]">
+              Untitled loop
+            </div>
             <div
               className={cn(
-                "mt-0.5 text-[10px]",
+                "mt-0.5 flex items-center gap-1 text-[10px]",
                 saveState === "error" ? "text-danger" : "text-text-dim",
               )}
               role="status"
               aria-live="polite"
             >
+              {saveState === "saved" ? <Check className="size-3" /> : null}
               {saveState === "saving"
                 ? "Saving…"
                 : saveState === "saved"
@@ -1280,25 +1393,36 @@ export function StudioApp() {
           </div>
         </div>
 
-        <div className="flex-shrink-0 px-4 pt-3">
-          <ProgressionCards
-            cards={progressionCards}
-            editIndex={editIndex}
-            onSelect={setEditIndex}
-            onAdd={addStep}
-            onRemove={removeStep}
-            onCycleColor={cycleColor}
-          />
+        <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden">
+          {hasChords ? (
+            <div className="flex-shrink-0 px-4 pt-3 sm:px-5">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim">
+                  Progression
+                </span>
+                <span className="font-mono text-[10px] text-text-muted">
+                  {progression.length}{" "}
+                  {progression.length === 1 ? "bar" : "bars"}
+                </span>
+              </div>
+              <ProgressionCards
+                cards={progressionCards}
+                editIndex={editIndex}
+                onSelect={setEditIndex}
+                onAdd={addStep}
+                onRemove={removeStep}
+                onCycleColor={cycleColor}
+                compact
+              />
+            </div>
+          ) : null}
+
+          <div className="flex-shrink-0 px-4 pt-3 sm:px-5">{mobileTabsEl}</div>
+
+          <div className="scrollbar-thin min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-5 sm:px-5 md:pb-8">
+            {stepTab === "chords" ? mobileChordContent : focusStepContent}
+          </div>
         </div>
-
-        {/* tabs */}
-        <div className="flex-shrink-0 px-4 pt-3">{focusTabsEl}</div>
-
-        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-4">
-          {focusStepContent}
-        </div>
-
-        <div className="flex-shrink-0 px-4 pb-2">{lockButton}</div>
         <TransportBar
           isPlaying={isPlaying}
           bpm={bpm}
@@ -1306,6 +1430,8 @@ export function StudioApp() {
           onToggle={isPlaying ? handleStop : handlePlay}
           onBpm={setBpm}
           onMasterVolume={setMasterVolume}
+          canLock={hasChords}
+          onLock={lock}
         />
       </div>
     </div>
