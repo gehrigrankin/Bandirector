@@ -22,7 +22,7 @@ export default async function SettingsPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-dim">Account</p>
         <h1 className="mt-2 font-display text-3xl font-bold">Settings</h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">Make Bandirector fit the way you practice, create, and play.</p>
-        <div className="mt-8"><AccountSettings email={email} initials={initials} /></div>
+        <div className="mt-8"><AccountSettings email={email} initials={initials} canSignOut={isSupabaseConfigured() && Boolean(email)} /></div>
       </main>
     </AppShell>
   );
