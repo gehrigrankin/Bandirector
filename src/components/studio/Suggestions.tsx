@@ -9,11 +9,18 @@ import { cn } from "@/lib/utils/cn";
 interface Props {
   onApply: (degrees: number[], ext?: ChordExt) => void;
   layout?: "row" | "grid";
+  title?: string;
+  description?: string;
 }
 
 const FEATURED_COUNT = 6;
 
-export function Suggestions({ onApply, layout = "row" }: Props) {
+export function Suggestions({
+  onApply,
+  layout = "row",
+  title = "Start with a progression",
+  description = "Pick a shape, then make it yours.",
+}: Props) {
   const [expanded, setExpanded] = useState(false);
 
   if (layout === "grid") {
@@ -26,10 +33,10 @@ export function Suggestions({ onApply, layout = "row" }: Props) {
         <div className="mb-2.5 flex items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-base font-semibold text-text">
-              Start with a progression
+              {title}
             </h2>
             <p className="mt-0.5 text-xs text-text-muted">
-              Pick a shape, then make it yours.
+              {description}
             </p>
           </div>
           <Sparkles className="mb-1 size-4 shrink-0 text-accent" />
