@@ -17,7 +17,7 @@ export default async function UploadPage() {
   if (!user) redirect("/login");
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col px-5 py-6 safe-top safe-bottom md:py-10">
+    <main className="mx-auto flex min-h-dvh max-w-xl flex-col px-4 py-5 safe-top safe-bottom sm:px-6 md:py-10">
       <div className="flex items-center gap-3">
         <Link href="/library" className="text-sm text-text-muted hover:text-text">
           ← Library
@@ -31,11 +31,11 @@ export default async function UploadPage() {
         </Link>
       </div>
 
-      <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">Add to your songs</p>
-      <h1 className="mt-2 font-display text-[30px] font-bold">Bring a song into your workspace.</h1>
+      <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Add to your songs</p>
+      <h1 className="mt-1.5 font-display text-[28px] font-bold leading-tight tracking-[-0.03em] sm:text-[32px]">Bring in a song.</h1>
       <p className="mt-2 text-[13px] leading-relaxed text-text-muted">We&apos;ll create a starting chord timeline in your browser, then let you review uncertain moments before you practice or Jam.</p>
 
-      <div className="mt-6">
+      <div className="mt-5 sm:mt-6">
         <UploadForm userId={user.id} />
       </div>
     </main>

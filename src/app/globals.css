@@ -19,10 +19,24 @@ html {
 
 body {
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
+}
+
+@media (max-width: 1279px) {
+  body {
+    overscroll-behavior-y: none;
+  }
 }
 
 @layer utilities {

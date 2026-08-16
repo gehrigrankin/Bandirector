@@ -18,8 +18,8 @@ export function AccountSettings({ email, initials, canSignOut = false }: { email
   }
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-3xl border border-line bg-bg-card p-5 md:p-6">
+    <div className="space-y-3 sm:space-y-5">
+      <section className="rounded-2xl border border-line bg-bg-card p-4 sm:rounded-3xl sm:p-5 md:p-6">
         <div className="flex items-center gap-4">
           <span className="flex size-14 items-center justify-center rounded-2xl bg-accent/15 font-display text-xl font-bold text-accent">
             {initials}
@@ -30,16 +30,16 @@ export function AccountSettings({ email, initials, canSignOut = false }: { email
           </div>
         </div>
       </section>
-      <section className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-line-soft bg-bg-card p-4">
+      <section className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="rounded-2xl border border-line-soft bg-bg-card p-3.5 sm:p-4">
           <UserRound className="size-5 text-accent" />
           <p className="mt-3 text-sm font-semibold">Musician profile</p>
-          <p className="mt-1 text-xs leading-relaxed text-text-muted">Set your instruments and preferred practice mode.</p>
+          <p className="mt-1 hidden text-xs leading-relaxed text-text-muted sm:block">Set your instruments and preferred practice mode.</p>
         </div>
-        <div className="rounded-2xl border border-line-soft bg-bg-card p-4">
+        <div className="rounded-2xl border border-line-soft bg-bg-card p-3.5 sm:p-4">
           <SlidersHorizontal className="size-5 text-jam" />
           <p className="mt-3 text-sm font-semibold">Audio settings</p>
-          <p className="mt-1 text-xs leading-relaxed text-text-muted">Tune latency, metronome, and MIDI preferences.</p>
+          <p className="mt-1 hidden text-xs leading-relaxed text-text-muted sm:block">Tune latency, metronome, and MIDI preferences.</p>
         </div>
       </section>
       {canSignOut ? (

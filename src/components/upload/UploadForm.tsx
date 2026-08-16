@@ -116,6 +116,9 @@ export function UploadForm({ userId }: Props) {
           if (f) setFile(f);
         }}
         onClick={() => fileRef.current?.click()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") fileRef.current?.click();
+        }}
         role="button"
         tabIndex={0}
       >
@@ -132,9 +135,9 @@ export function UploadForm({ userId }: Props) {
           </>
         ) : (
           <>
-            <div className="text-sm font-semibold">Drop an MP3 here</div>
+            <div className="text-sm font-semibold">Choose an MP3</div>
             <div className="text-xs text-text-muted">
-              or click to pick one — MP3 only
+              Tap to browse your files
             </div>
           </>
         )}

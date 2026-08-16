@@ -143,11 +143,11 @@ export function SongCoach({ song }: { song: Song }) {
       <audio ref={audioRef} preload="auto" playsInline />
 
       {/* header */}
-      <header className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-line-soft px-4 py-3 md:h-16 md:px-6 md:py-0">
+      <header className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-line-soft px-4 py-3 xl:h-16 xl:px-6 xl:py-0">
         <Link
           href={`/songs/${song.id}`}
           aria-label="Back"
-          className="text-text-dim hover:text-text md:hidden"
+          className="text-text-dim hover:text-text xl:hidden"
         >
           <ArrowLeft className="size-5" />
         </Link>
@@ -178,7 +178,7 @@ export function SongCoach({ song }: { song: Song }) {
       </header>
 
       {/* ── desktop ── */}
-      <div className="hidden min-h-0 flex-1 md:flex">
+      <div className="hidden min-h-0 flex-1 xl:flex">
         {!hasSections ? (
           emptyState
         ) : (
@@ -343,7 +343,7 @@ export function SongCoach({ song }: { song: Song }) {
       </div>
 
       {/* ── mobile ── */}
-      <div className="flex min-h-0 flex-1 flex-col md:hidden">
+      <div className="flex min-h-0 flex-1 flex-col xl:hidden">
         {!hasSections ? (
           emptyState
         ) : (
