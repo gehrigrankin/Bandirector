@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Play, Square, SkipBack, Volume2 } from "lucide-react";
+import { Check, Play, Square, SkipBack, Volume2 } from "lucide-react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
 import {
   getInstrument,
@@ -55,6 +55,11 @@ import { MidiPanel } from "@/components/studio/MidiPanel";
 import { TransportBar } from "@/components/studio/TransportBar";
 import { Lock, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import {
+  loadStudioProject,
+  saveStudioProject,
+  type StudioProjectSnapshot,
+} from "@/lib/studio/projectStore";
 
 const PREVIEW_VOLUME = 0.85;
 
@@ -229,6 +234,77 @@ export function StudioApp() {
   }));
   const [tracks, setTracks] = useState<Track[]>([]);
   const nextId = useRef(1);
+  const [projectReady, setProjectReady] = useState(false);
+  const [saveState, setSaveState] = useState<"saving" | "saved" | "error">(
+    "saving",
+  );
+
+  // Restore after mount so the server and first client render stay identical.
+  // The ready flag prevents the empty defaults from overwriting the saved
+  // project before restoration finishes.
+  useEffect(() => {
+    const saved = loadStudioProject();
+    if (saved) {
+      setBpm(saved.bpm);
+      setMasterVolume(saved.masterVolume);
+      setSwing(saved.swing);
+      setHumanize(saved.humanize);
+      setTonic(saved.tonic);
+      setMode(saved.mode);
+      setChordQuality(saved.chordQuality);
+      setProgression(saved.progression);
+      setSelection(saved.selection);
+      setTracks(saved.tracks);
+      setViewMode(saved.viewMode);
+      const largestTrackId = saved.tracks.reduce((largest, track) => {
+        const number = Number(track.id.match(/^t(\d+)$/)?.[1] ?? 0);
+        return Math.max(largest, number);
+      }, 0);
+      nextId.current = largestTrackId + 1;
+    }
+    setProjectReady(true);
+  }, []);
+
+  // Studio is intentionally usable without an account. A short debounce keeps
+  // edits durable without writing localStorage on every sequencer tap.
+  useEffect(() => {
+    if (!projectReady) return;
+    setSaveState("saving");
+
+    const timeout = window.setTimeout(() => {
+      const project: StudioProjectSnapshot = {
+        version: 1,
+        updatedAt: Date.now(),
+        bpm,
+        masterVolume,
+        swing,
+        humanize,
+        tonic,
+        mode,
+        chordQuality,
+        progression,
+        selection,
+        tracks,
+        viewMode,
+      };
+      setSaveState(saveStudioProject(project) ? "saved" : "error");
+    }, 400);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    projectReady,
+    bpm,
+    masterVolume,
+    swing,
+    humanize,
+    tonic,
+    mode,
+    chordQuality,
+    progression,
+    selection,
+    tracks,
+    viewMode,
+  ]);
 
   const hasChords = progression.length > 0;
   const step = hasChords
@@ -1077,6 +1153,21 @@ export function StudioApp() {
             </button>
           ))}
         </div>
+        <div
+          className={cn(
+            "flex items-center gap-1.5 text-[10px]",
+            saveState === "error" ? "text-danger" : "text-text-dim",
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {saveState === "saved" ? <Check className="size-3" /> : null}
+          {saveState === "saving"
+            ? "Saving…"
+            : saveState === "saved"
+              ? "Saved on this device"
+              : "Couldn’t save locally"}
+        </div>
         <div className="flex-1" />
         <div className="flex items-center gap-2.5">
           <button
@@ -1165,6 +1256,20 @@ export function StudioApp() {
           <div>
             <div className={railLabel}>Songwriter Studio</div>
             <div className="mt-0.5 font-display text-[17px] font-semibold">Untitled loop</div>
+            <div
+              className={cn(
+                "mt-0.5 text-[10px]",
+                saveState === "error" ? "text-danger" : "text-text-dim",
+              )}
+              role="status"
+              aria-live="polite"
+            >
+              {saveState === "saving"
+                ? "Saving…"
+                : saveState === "saved"
+                  ? "Saved on this device"
+                  : "Couldn’t save locally"}
+            </div>
           </div>
           <div className="ml-auto">
             <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />

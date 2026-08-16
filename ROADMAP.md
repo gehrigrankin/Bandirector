@@ -31,6 +31,8 @@ A chord + loop workstation for writing songs:
 
 Audio is browser-only: one shared `AudioContext`, a custom lookahead scheduler
 (the Web Audio "two clocks" pattern), and smplr for real GM instrument timbres.
+The current Studio arrangement is versioned and autosaved locally, so refreshing
+or reopening the app resumes the progression, layers, patterns, and mix.
 
 ## 3. Song Coach ("how to play a song") — *shipped (v1)*
 
@@ -56,8 +58,8 @@ rhythm/ear examples (185 visuals across 69 topics; content in
 
 Progress is not started → learning → known per topic. It persists per user
 (`learning_progress` table) when Supabase is configured, and falls back to
-device-local storage otherwise — local entries sync up automatically once the
-DB exists.
+device-local storage for signed-out visitors or deployments without Supabase —
+local entries sync up automatically once the DB exists.
 
 Future: drums track, a "quiz me" mode built on the checkpoints, per-topic
 drills that link into the Studio/Coach, automatic progress from Coach sessions
@@ -67,7 +69,8 @@ and Jams, "what to learn next" suggestions.
 
 ### Out of scope (recorded, not built yet)
 
-- Saving / exporting progressions, MIDI / audio export.
+- Named projects, cloud sync, sharing, and MIDI / audio export. The current
+  arrangement already autosaves locally as a recovery/resume baseline.
 - Song sections (verse / chorus), tempo automation.
 - Wiring Studio output into the Jam rooms.
 - The "How to play a song" part above.
