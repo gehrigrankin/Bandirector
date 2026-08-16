@@ -31,11 +31,9 @@ export default async function UploadPage() {
         </Link>
       </div>
 
-      <h1 className="mt-5 font-display text-[26px] font-bold">Upload a song</h1>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-text-muted">
-        MP3 only. Analysis runs in your browser — fill in the details while it
-        works.
-      </p>
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">Add to your songs</p>
+      <h1 className="mt-2 font-display text-[30px] font-bold">Bring a song into your workspace.</h1>
+      <p className="mt-2 text-[13px] leading-relaxed text-text-muted">We&apos;ll create a starting chord timeline in your browser, then let you review uncertain moments before you practice or Jam.</p>
 
       <div className="mt-6">
         <UploadForm userId={user.id} />

@@ -3,6 +3,8 @@ import { AppShell } from "@/components/ui/AppNav";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getInitials } from "@/lib/utils/initials";
 import { IcebergCourse } from "@/components/learn/IcebergCourse";
+import Link from "next/link";
+import { ArrowRight, Music4 } from "lucide-react";
 import { isValidTopicId } from "@/lib/learning/curriculum";
 import type { TopicStatus } from "@/lib/types/database";
 
@@ -27,6 +29,10 @@ function LearnLayout({
           </span>
         </div>
 
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <Link href="/library" className="group rounded-2xl border border-line-soft bg-bg-card p-4 transition-colors hover:bg-bg-raised"><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">Learn through a song</p><p className="mt-2 text-sm font-semibold">Find your next practice target <ArrowRight className="ml-1 inline size-3.5 transition-transform group-hover:translate-x-1" /></p></Link>
+          <Link href="/studio" className="group rounded-2xl border border-line-soft bg-bg-card p-4 transition-colors hover:bg-bg-raised"><p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim"><Music4 className="size-3.5 text-accent" /> Use it immediately</p><p className="mt-2 text-sm font-semibold">Turn a concept into a progression <ArrowRight className="ml-1 inline size-3.5 transition-transform group-hover:translate-x-1" /></p></Link>
+        </div>
         <div className="mt-6">{children}</div>
       </div>
     </AppShell>

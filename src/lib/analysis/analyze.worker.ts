@@ -11,9 +11,9 @@ import type { BeatInfo, ChordHit, Feel } from "@/lib/types/database";
 //   - key:   essentia.KeyExtractor
 //   - chords: chord-detector (CNN) over chroma frames
 //
-// The heuristic below uses autocorrelation for tempo and a simple chroma-based
-// key / chord guess. Accuracy is intentionally modest (~60%) — the correction
-// screen is how users bring it to 100%.
+// The browser baseline uses autocorrelation for tempo and chroma-template
+// matching for key/chords. It is intentionally presented as an estimate: the
+// correction screen is where users bring the timeline to 100%.
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -63,7 +63,7 @@ async function analyze(buffer: ArrayBuffer): Promise<AnalysisResult> {
   const key = estimateKey(chroma);
 
   report(80, "Detecting chords…");
-  const chords = chordTrackFromBeats(beats, key);
+  const chords = chordTrackFromAudio(samples, sampleRate, beats);
 
   report(95, "Finalizing…");
   const feel = guessFeel(bpm);
@@ -251,54 +251,62 @@ function estimateKey(chroma: Float32Array): string {
   return bestKey;
 }
 
-function chordTrackFromBeats(beats: BeatInfo[], key: string): ChordHit[] {
+function chordTrackFromAudio(samples: Float32Array, sampleRate: number, beats: BeatInfo[]): ChordHit[] {
   if (beats.length < 2) return [];
-  const isMinor = key.endsWith("m");
-  const root = key.replace("m", "");
-  const rootIdx = KEY_NAMES.indexOf(root);
-  if (rootIdx === -1) return [];
-
-  const degrees = isMinor
-    ? ["i", "VI", "III", "VII"]
-    : ["I", "V", "vi", "IV"];
-  const majorMap: Record<string, [number, boolean]> = {
-    I: [0, false],
-    ii: [2, true],
-    iii: [4, true],
-    IV: [5, false],
-    V: [7, false],
-    vi: [9, true],
-    vii: [11, true],
-  };
-  const minorMap: Record<string, [number, boolean]> = {
-    i: [0, true],
-    ii: [2, true],
-    III: [3, false],
-    iv: [5, true],
-    V: [7, false],
-    VI: [8, false],
-    VII: [10, false],
-  };
-
   const out: ChordHit[] = [];
   let beatIdx = 0;
-  let progIdx = 0;
   while (beatIdx < beats.length - 4) {
     const start = beats[beatIdx].time;
     const end = beats[Math.min(beatIdx + 4, beats.length - 1)].time;
     const duration = end - start;
     if (duration <= 0) break;
-
-    const degree = degrees[progIdx % degrees.length];
-    const [offset, minor] = (isMinor ? minorMap : majorMap)[degree];
-    const chordRoot = KEY_NAMES[(rootIdx + offset) % 12];
-    const chord = minor ? `${chordRoot}m` : chordRoot;
-
-    out.push({ time: start, duration, chord, verified: false });
+    const chroma = windowChroma(samples, sampleRate, start, end);
+    const match = bestChord(chroma);
+    out.push({ time: start, duration, chord: match.chord, confidence: match.confidence, verified: false });
     beatIdx += 4;
-    progIdx += 1;
   }
   return out;
+}
+
+function windowChroma(samples: Float32Array, sampleRate: number, startTime: number, endTime: number): Float32Array {
+  const frameSize = 4096;
+  const hop = 2048;
+  const start = Math.max(0, Math.floor(startTime * sampleRate));
+  const end = Math.min(samples.length, Math.ceil(endTime * sampleRate));
+  const chroma = new Float32Array(12);
+  let frames = 0;
+  for (let offset = start; offset + frameSize <= end; offset += hop) {
+    const spectrum = magnitudeSpectrum(samples.subarray(offset, offset + frameSize));
+    for (let k = 1; k < spectrum.length; k++) {
+      const freq = (k * sampleRate) / frameSize;
+      if (freq < 70 || freq > 1600) continue;
+      const semitone = Math.round(12 * Math.log2(freq / 440)) + 9;
+      chroma[((semitone % 12) + 12) % 12] += spectrum[k];
+    }
+    frames += 1;
+  }
+  if (!frames) return chroma;
+  let max = 0;
+  for (let i = 0; i < 12; i++) max = Math.max(max, chroma[i]);
+  if (max > 0) for (let i = 0; i < 12; i++) chroma[i] /= max;
+  return chroma;
+}
+
+function bestChord(chroma: Float32Array): { chord: string; confidence: number } {
+  let best = { chord: "N", score: 0 };
+  let second = 0;
+  for (let root = 0; root < 12; root++) {
+    for (const minor of [false, true]) {
+      const third = (root + (minor ? 3 : 4)) % 12;
+      const fifth = (root + 7) % 12;
+      const seventh = (root + 10) % 12;
+      const score = chroma[root] * 1.6 + chroma[third] * 1.05 + chroma[fifth] * 1.25 + chroma[seventh] * 0.2;
+      if (score > best.score) { second = best.score; best = { chord: `${KEY_NAMES[root]}${minor ? "m" : ""}`, score }; }
+      else if (score > second) second = score;
+    }
+  }
+  const confidence = best.score > 0 ? Math.max(0, Math.min(1, (best.score - second) / best.score + 0.45)) : 0;
+  return { chord: best.chord, confidence: Number(confidence.toFixed(2)) };
 }
 
 function guessFeel(bpm: number): Feel {

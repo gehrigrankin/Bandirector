@@ -1,9 +1,13 @@
 # Bandirector Roadmap
 
-Bandirector is a **multi-part music app**: a set of tools for writing, learning,
-and playing music together. Each "part" is a focused surface that shares the
-same core (music theory, chord rendering, real instrument sounds, mobile-first
-UI). The parts captured so far:
+Bandirector is a **musician workflow**: start with an idea or song, build it,
+learn what is missing, practice it, and play it with other people. Each surface
+shares the same Song Workspace and core (music theory, chord rendering, real
+instrument sounds, mobile-first UI).
+
+The primary navigation is **Today → Create → Songs → Jam → Learn**. Coach and
+chord review are modes inside a Song Workspace rather than disconnected
+destinations.
 
 ## 1. Jam Together — *shipped*
 
@@ -67,10 +71,10 @@ and Jams, "what to learn next" suggestions.
 
 ---
 
-### Out of scope (recorded, not built yet)
+### Next workflow upgrades
 
-- Named projects, cloud sync, sharing, and MIDI / audio export. The current
-  arrangement already autosaves locally as a recovery/resume baseline.
-- Song sections (verse / chorus), tempo automation.
-- Wiring Studio output into the Jam rooms.
-- The "How to play a song" part above.
+- Named projects, cloud sync, sharing, and MIDI / audio export.
+- Song sections (verse / chorus), tempo automation, and arrangement transforms.
+- Analysis confidence review and correction history before a song enters a Jam.
+- Adaptive Coach practice plans and Learn-to-song recommendations.
+- Jam lobby readiness, role-aware stages, rehearsal marks, and session recaps.

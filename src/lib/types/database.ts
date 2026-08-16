@@ -31,6 +31,7 @@ export interface ChordHit {
   duration: number;
   chord: string;
   verified?: boolean;
+  confidence?: number;
 }
 
 export interface AnalysisJson {
