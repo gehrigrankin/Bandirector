@@ -14,6 +14,7 @@ import {
   nextSectionName,
   patternFor,
   removeSection,
+  reorderSection,
   resolveSongBar,
   resolveTransportBar,
   sectionStarts,
@@ -150,6 +151,14 @@ describe("section edits", () => {
     expect(moveSection(song, "s2", -1).sections.map((s) => s.id)).toEqual(["s0", "s2", "s1"]);
     expect(moveSection(song, "s0", -1)).toBe(song);
     expect(moveSection(song, "s2", 1)).toBe(song);
+  });
+
+  it("reorders a section to an absolute slot", () => {
+    const song = songWith([1, 2, 3, 4]);
+    expect(reorderSection(song, "s3", 0).sections.map((s) => s.id)).toEqual(["s3", "s0", "s1", "s2"]);
+    expect(reorderSection(song, "s0", 3).sections.map((s) => s.id)).toEqual(["s1", "s2", "s3", "s0"]);
+    expect(reorderSection(song, "s1", 1)).toBe(song);
+    expect(reorderSection(song, "nope", 0)).toBe(song);
   });
 
   it("colours chords by scale degree and is reversible", () => {

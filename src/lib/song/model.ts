@@ -285,6 +285,19 @@ export function moveSection(song: Song, sectionId: string, delta: -1 | 1): Song 
   return { ...song, sections };
 }
 
+/** Move a section to an absolute position (drag and drop). `toIndex` is the
+ *  slot in the list *after* the section has been lifted out. */
+export function reorderSection(song: Song, sectionId: string, toIndex: number): Song {
+  const from = song.sections.findIndex((s) => s.id === sectionId);
+  if (from < 0) return song;
+  const sections = [...song.sections];
+  const [moved] = sections.splice(from, 1);
+  const to = Math.max(0, Math.min(sections.length, toIndex));
+  if (to === from) return song;
+  sections.splice(to, 0, moved);
+  return { ...song, sections };
+}
+
 /** Upgrade (or reset) every chord in a section to a colour level, using the
  *  song key so I becomes maj7 while V becomes 7. */
 export function colourSection(

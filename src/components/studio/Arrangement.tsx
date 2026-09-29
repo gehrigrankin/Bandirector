@@ -6,7 +6,7 @@
 // out — and its width is the section's length in bars, so you can see who
 // plays where and for how long at a glance.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { Plus, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { getInstrument, INSTRUMENTS, type InstrumentId } from "@/lib/audio/instruments";
@@ -54,7 +54,11 @@ interface Props {
   onAddTrack: (id: InstrumentId) => void;
   onMute: (trackId: string, muted: boolean) => void;
   onSolo: (trackId: string, solo: boolean) => void;
+  /** Drop a section into slot `toIndex` (counted with the section lifted out). */
+  onReorderSection: (sectionId: string, toIndex: number) => void;
 }
+
+const DRAG_TYPE = "application/x-bandirector-section";
 
 // ─── Pattern glyph ───────────────────────────────────────────────────────────
 
@@ -189,28 +193,55 @@ function ChordLane({
 
 function SectionHeader({
   section,
+  index,
   barW,
   selected,
   playing,
+  dropSide,
   onClick,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   section: Section;
+  index: number;
   barW: number;
   selected: boolean;
   playing: boolean;
+  dropSide: "before" | "after" | null;
   onClick: () => void;
+  onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
+  onDragOver: (e: DragEvent<HTMLButtonElement>) => void;
+  onDrop: (e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
 }) {
   const color = SECTION_COLORS[section.kind];
   const summary = section.progression.map((c) => chordSymbol(c.root, c.quality)).join(" · ");
   return (
     <button
       type="button"
+      draggable
+      data-index={index}
       onClick={onClick}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       aria-pressed={selected}
       aria-label={`${section.name}, ${section.bars} bars`}
-      className="relative h-full shrink-0 border-r border-bg p-[3px] text-left"
+      title="Drag to move this section"
+      className="relative h-full shrink-0 cursor-grab border-r border-bg p-[3px] text-left active:cursor-grabbing"
       style={{ width: section.bars * barW }}
     >
+      {dropSide ? (
+        <span
+          className={cn(
+            "pointer-events-none absolute inset-y-0 z-10 w-[3px] rounded-full bg-text",
+            dropSide === "before" ? "-left-[2px]" : "-right-[2px]",
+          )}
+        />
+      ) : null}
       <div
         className={cn(
           "flex h-full flex-col justify-center overflow-hidden rounded-md px-2 transition-opacity",
@@ -360,6 +391,7 @@ export function Arrangement({
   onAddTrack,
   onMute,
   onSolo,
+  onReorderSection,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -423,6 +455,42 @@ export function Arrangement({
     return () => cancelAnimationFrame(raf);
   }, [isPlaying, getPlayhead]);
 
+  // Drag a section header to move it; the drop side comes from the pointer's
+  // half of the target header.
+  const [drag, setDrag] = useState<{ id: string; over: number; side: "before" | "after" } | null>(null);
+  const dragId = useRef<string | null>(null);
+  const startDrag = (id: string) => (e: DragEvent<HTMLButtonElement>) => {
+    dragId.current = id;
+    e.dataTransfer.setData(DRAG_TYPE, id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const overSection = (index: number) => (e: DragEvent<HTMLButtonElement>) => {
+    if (!dragId.current) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    const side = e.clientX - rect.left < rect.width / 2 ? "before" : "after";
+    setDrag((d) => (d && d.over === index && d.side === side ? d : { id: dragId.current!, over: index, side }));
+  };
+  const dropOnSection = (index: number) => (e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const id = dragId.current || e.dataTransfer.getData(DRAG_TYPE);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const side = e.clientX - rect.left < rect.width / 2 ? "before" : "after";
+    dragId.current = null;
+    setDrag(null);
+    if (!id) return;
+    const from = song.sections.findIndex((x) => x.id === id);
+    if (from < 0) return;
+    let to = side === "before" ? index : index + 1;
+    if (from < to) to -= 1; // slots shift once the section is lifted out
+    onReorderSection(id, to);
+  };
+  const clearDrag = () => {
+    dragId.current = null;
+    setDrag(null);
+  };
+
   const zoomBy = useCallback((factor: number) => {
     setZoom((z) => Math.max(0.25, Math.min(6, z * factor)));
   }, []);
@@ -480,14 +548,20 @@ export function Arrangement({
             >
               <span className={LABEL}>Sections</span>
             </div>
-            {song.sections.map((s) => (
+            {song.sections.map((s, i) => (
               <SectionHeader
                 key={s.id}
                 section={s}
+                index={i}
                 barW={barW}
                 selected={selectedSection === s.id}
                 playing={playingSection === s.id}
+                dropSide={drag && drag.over === i && drag.id !== s.id ? drag.side : null}
                 onClick={() => onSelect({ kind: "section", sectionId: s.id })}
+                onDragStart={startDrag(s.id)}
+                onDragOver={overSection(i)}
+                onDrop={dropOnSection(i)}
+                onDragEnd={clearDrag}
               />
             ))}
             <div className="flex shrink-0 items-center pl-2" style={{ width: TAIL_W }}>
