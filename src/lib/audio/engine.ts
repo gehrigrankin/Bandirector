@@ -233,6 +233,8 @@ class Engine {
           clap: resolveDrumName("clap", names),
         };
       }
+    }).catch(() => {
+      /* soundfont unreachable (offline) — the track stays silent */
     });
 
     this.handles.set(track.id, handle);
@@ -361,9 +363,13 @@ class Engine {
       isDrums: !!def.isDrums,
       loaded: false,
     };
-    instrument.load.then(() => {
-      handle.loaded = true;
-    });
+    instrument.load
+      .then(() => {
+        handle.loaded = true;
+      })
+      .catch(() => {
+        /* soundfont unreachable (offline) */
+      });
     this.live.set(instrumentId, handle);
     return handle;
   }

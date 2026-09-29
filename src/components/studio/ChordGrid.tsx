@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { QUALITIES, chordSymbol } from "@/lib/music/chord";
-import { ROOTS } from "@/components/studio/types";
+import { ROOTS } from "@/lib/song/model";
 
 interface Props {
   root: string;

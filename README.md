@@ -6,10 +6,13 @@ organized around a shared Song Workspace rather than isolated tools.
 
 The primary navigation is **Today → Create → Songs → Jam → Learn**:
 
-- **Songwriter Studio** (`/studio`) — a chord + loop workstation. Pick a root and
-  quality, choose a playing style for an instrument, loop it, and lock loops to
-  layer a full arrangement of real (soundfont) instruments under one transport.
-  The current arrangement autosaves to the device and resumes after a refresh.
+- **Songwriter Studio** (`/studio`) — a GarageBand-style song sketchpad. Lay
+  out sections (Intro, Verse, Chorus, Bridge…) each with their own chords and
+  length, add one row per instrument, and click blocks to decide who plays in
+  which section and with what groove. Loop one section while you build it,
+  play the whole thing, then **Export MIDI** (one track per instrument, section
+  markers, tempo) to finish it in GarageBand / Logic / Ableton. Autosaves to
+  the device.
 - **Jam Together** (`/jam`) — the real-time jam: a host uploads an MP3, the
   browser analyzes chords/tempo/key, and everyone picks their instrument + style
   and sees their part synced to a timeline.
@@ -40,6 +43,8 @@ See [ROADMAP.md](./ROADMAP.md) for where this is going.
 - **Tailwind CSS** (dark theme, mobile-first)
 - **smplr** (Soundfont + DrumMachine) with a custom lookahead scheduler for the
   Songwriter Studio; the Learn diagrams play through the same engine
+- A dependency-free Standard MIDI File writer (`src/lib/song/midi.ts`) for
+  the Studio's export
 - **Web Worker** audio analysis (essentia.js / chord-detector)
 - **LRCLIB** for synced lyrics
 
