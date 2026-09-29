@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Minus, Play, Plus, Square } from "lucide-react";
+import { Download, FilePlus2, Minus, Play, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Mode } from "@/lib/music/chord";
 import type { Song } from "@/lib/song/model";
@@ -20,6 +20,7 @@ interface Props {
   onLoopMode: (mode: "song" | "section") => void;
   onSelectSong: () => void;
   onExportMidi: () => void;
+  onNewSong: () => void;
 }
 
 export function Transport({
@@ -36,6 +37,7 @@ export function Transport({
   onLoopMode,
   onSelectSong,
   onExportMidi,
+  onNewSong,
 }: Props) {
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-soft bg-[#0d0d11] px-3 py-2 sm:px-4">
@@ -122,6 +124,15 @@ export function Transport({
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onNewSong}
+          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line px-3 text-[11.5px] font-semibold text-text-soft hover:bg-bg-raised"
+          title="Start a blank song (the current one is replaced)"
+        >
+          <FilePlus2 className="size-3.5" />
+          New
+        </button>
         <button
           type="button"
           onClick={onExportMidi}

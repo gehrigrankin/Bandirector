@@ -190,6 +190,7 @@ export function songFromLegacy(raw: unknown): Song | null {
   }
   return {
     ...song,
+    title: "Old Studio loop",
     bpm: old.bpm,
     swing: old.swing,
     humanize: old.humanize,
