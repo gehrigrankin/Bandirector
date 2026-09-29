@@ -2,20 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { chordSymbol, extendQuality } from "@/lib/music/chord";
-import {
-  loadStudioProject,
-  type StudioProjectSnapshot,
-} from "@/lib/studio/projectStore";
+import { totalBars, type Song } from "@/lib/song/model";
+import { loadSong } from "@/lib/song/store";
 
 export function StudioResumeLink() {
-  const [project, setProject] = useState<StudioProjectSnapshot | null>(null);
+  const [song, setSong] = useState<Song | null>(null);
 
   useEffect(() => {
-    setProject(loadStudioProject());
+    setSong(loadSong());
   }, []);
 
-  if (!project?.progression.length) {
+  if (!song) {
     return (
       <span className="text-xs text-text-muted">
         Autosaves on this device
@@ -23,22 +20,7 @@ export function StudioResumeLink() {
     );
   }
 
-  const chords = project.progression
-    .slice(0, 4)
-    .map((step) =>
-      chordSymbol(
-        step.root,
-        extendQuality(
-          step.root,
-          step.quality,
-          project.tonic,
-          project.mode,
-          step.ext ?? project.chordQuality,
-        ),
-      ),
-    )
-    .join(" · ");
-
+  const parts = song.tracks.length;
   return (
     <Link
       href="/studio"
@@ -46,13 +28,12 @@ export function StudioResumeLink() {
     >
       <span className="shrink-0">Resume</span>
       <span className="max-w-48 truncate font-display font-semibold text-text">
-        {chords}
+        {song.title || "Untitled song"}
       </span>
-      {project.tracks.length > 0 ? (
-        <span className="shrink-0 font-mono text-[10px] text-accent">
-          {project.tracks.length} {project.tracks.length === 1 ? "layer" : "layers"}
-        </span>
-      ) : null}
+      <span className="shrink-0 font-mono text-[10px] text-accent">
+        {song.sections.length} {song.sections.length === 1 ? "section" : "sections"} · {totalBars(song)} bars
+        {parts > 0 ? ` · ${parts} ${parts === 1 ? "part" : "parts"}` : ""}
+      </span>
     </Link>
   );
 }

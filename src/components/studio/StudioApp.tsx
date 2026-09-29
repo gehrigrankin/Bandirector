@@ -1,385 +1,116 @@
 "use client";
 
+// The Create page: a GarageBand-style song sketchpad. Sections across the top,
+// one row per instrument, click blocks to decide who plays where; the
+// inspector under the grid edits whatever is selected (a section's chords, an
+// instrument's groove in one section, a track's sound, or the song itself).
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Lock,
-  PencilLine,
-  Play,
-  SkipBack,
-  Sparkles,
-  Square,
-  Trash2,
-  Volume2,
-  X,
-} from "lucide-react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
+import { getInstrument, type InstrumentId } from "@/lib/audio/instruments";
+import { STEP_COUNT, defaultPattern, type Pattern } from "@/lib/audio/patterns";
+import type { ChordExt, Mode } from "@/lib/music/chord";
 import {
-  getInstrument,
-  INSTRUMENTS,
-  type InstrumentId,
-} from "@/lib/audio/instruments";
-import {
-  STEP_COUNT,
-  clonePattern,
-  defaultPattern,
-  emptyPatternLike,
-  presetsFor,
-  renderPattern,
-  type Articulation,
-  type CompPattern,
-  type DrumVoice,
-  type LeftHandTexture,
-  type Pattern,
-  type RightHandPattern,
-} from "@/lib/audio/patterns";
-import {
-  chordIntervals,
-  chordNoteNames,
-  chordSymbol,
-  chordToMidi,
-  diatonicChords,
-  extendQuality,
-  noteToSemitone,
-  progressionFromDegrees,
-  type ChordExt,
-  type Mode,
-} from "@/lib/music/chord";
-import type { Voicing } from "@/lib/music/voicing";
-import type { ChordStep, Selection, Track } from "@/components/studio/types";
-import { patternSummary } from "@/lib/audio/patterns";
-import { KeySelect } from "@/components/studio/KeySelect";
-import { Suggestions } from "@/components/studio/Suggestions";
-import { StylePresets } from "@/components/studio/StylePresets";
-import { DiatonicChords } from "@/components/studio/DiatonicChords";
-import { ChordGrid } from "@/components/studio/ChordGrid";
-import { StepSequencer } from "@/components/studio/StepSequencer";
-import { Slider, lengthLabel, reverbLabel } from "@/components/studio/Slider";
-import {
-  ProgressionCards,
-  type ProgressionCard,
-} from "@/components/studio/ProgressionCards";
-import { GrooveCards, type GrooveOption } from "@/components/studio/GrooveCards";
-import { HandsKeyboard } from "@/components/studio/HandsKeyboard";
-import { MidiPanel } from "@/components/studio/MidiPanel";
-import { TransportBar } from "@/components/studio/TransportBar";
-import { MobileProgression } from "@/components/studio/MobileProgression";
-import { MobileStudioSheet } from "@/components/studio/MobileStudioSheet";
-import { cn } from "@/lib/utils/cn";
-import {
-  loadStudioProject,
-  saveStudioProject,
-  type StudioProjectSnapshot,
-} from "@/lib/studio/projectStore";
+  barsForProgression,
+  colourSection,
+  createSection,
+  createSong,
+  createTrack,
+  duplicateSection,
+  forkClipPattern,
+  MAX_SECTIONS,
+  MAX_TRACKS,
+  moveSection,
+  nextSectionName,
+  removeSection,
+  resolveTransportBar,
+  SECTION_KINDS,
+  setClip,
+  unforkClipPattern,
+  type ChordStep,
+  type Section,
+  type SectionKind,
+  type Song,
+  type Track,
+  type Transport as TransportState,
+} from "@/lib/song/model";
+import { buildScheduledTracks } from "@/lib/song/render";
+import { loadSong, saveSong } from "@/lib/song/store";
+import { midiFileName, songToMidi } from "@/lib/song/midi";
+import { Arrangement, type PlayheadPosition } from "@/components/studio/Arrangement";
+import { Transport } from "@/components/studio/Transport";
+import { SectionInspector } from "@/components/studio/SectionInspector";
+import { ClipInspector } from "@/components/studio/ClipInspector";
+import { TrackInspector } from "@/components/studio/TrackInspector";
+import { SongInspector } from "@/components/studio/SongInspector";
+import type { Selection } from "@/components/studio/shared";
 
-const PREVIEW_VOLUME = 0.85;
-
-// ── Groove card metadata ─────────────────────────────────────────────────────
-// Keyboard right-hand grooves shown as visual cards (id → copy + rhythm glyph).
-const RH_GROOVE_ORDER = [
-  "neosoul",
-  "block",
-  "arpeggio",
-  "charleston",
-  "comp",
-  "broken",
-] as const;
-const RH_GROOVE_META: Record<string, { name: string; desc: string; glyph: number[] }> = {
-  neosoul: { name: "Neo-soul", desc: "Lush offbeat comp", glyph: [1, 0.1, 0.1, 0.8, 0.1, 1, 0.1, 0.6] },
-  block: { name: "Block", desc: "Chords on the beat", glyph: [1, 0.1, 1, 0.1, 1, 0.1, 1, 0.1] },
-  arpeggio: { name: "Arpeggio", desc: "Flowing single notes", glyph: [0.5, 0.7, 0.9, 1, 0.5, 0.7, 0.9, 1] },
-  charleston: { name: "Charleston", desc: "Jazz push on the &", glyph: [1, 0.1, 0.1, 0.8, 0.1, 0.1, 0.1, 0.1] },
-  comp: { name: "Comp", desc: "Steady mid-bar hits", glyph: [1, 0.1, 0.1, 0.7, 0.1, 0.1, 1, 0.1] },
-  broken: { name: "Broken", desc: "Gently rolled chords", glyph: [0.6, 0.9, 0.4, 0.9, 0.6, 0.9, 0.4, 0.9] },
-};
-
-// Short descriptions for melodic / drum presets.
-const PRESET_DESC: Record<string, string> = {
-  down8: "Steady eighth strums",
-  pop: "Syncopated pop feel",
-  quarters: "One per beat",
-  arp: "Rolled single notes",
-  ballad: "Slow held chords",
-  root4: "Root on every beat",
-  root8: "Driving eighth roots",
-  oct: "Root + octave",
-  sync: "Off-beat pushes",
-  block4: "Chords on the beat",
-  offbeat: "Off-beat stabs",
-  pad: "One sustained chord",
-  hold: "One long swell",
-  stabs: "Short accents",
-  swell: "Gentle rises",
-  rock: "Kick 1&3, snare 2&4",
-  funk: "Ghosted, busy kick",
-  halftime: "Wide, heavy backbeat",
-  fourfloor: "Kick every beat",
-  latin: "Syncopated clave",
-};
-
-/** 8-step glyph from a melodic/drum pattern's density. */
-function glyphFromPattern(p: Pattern): number[] {
-  const out: number[] = [];
-  if (p.kind === "melodic") {
-    for (let i = 0; i < 8; i++) out.push(p.hits[i * 2] || p.hits[i * 2 + 1] ? 1 : 0.1);
-  } else if (p.kind === "drums") {
-    const rows = Object.values(p.rows);
-    for (let i = 0; i < 8; i++) {
-      const on = rows.reduce((n, r) => n + (r[i * 2] || r[i * 2 + 1] ? 1 : 0), 0);
-      out.push(Math.min(1, 0.1 + on * 0.3));
-    }
-  }
-  return out;
-}
-
-function samePattern(a: Pattern, b: Pattern): boolean {
-  if (a.kind !== b.kind) return false;
-  if (a.kind === "melodic" && b.kind === "melodic")
-    return a.articulation === b.articulation && a.hits.join("") === b.hits.join("");
-  if (a.kind === "drums" && b.kind === "drums")
-    return Object.keys(a.rows).every(
-      (k) => a.rows[k as DrumVoice].join("") === b.rows[k as DrumVoice].join(""),
-    );
-  return false;
-}
-
-const EXT_CYCLE: (ChordExt | undefined)[] = [undefined, "triad", "7th", "9th"];
-
-/** Shared harmony context the scheduler reads to resolve chord colour. */
-interface RenderCtx {
-  tonic: string;
-  mode: Mode;
-  chordQuality: ChordExt;
-}
-
-/** True for the keyboard family (Piano, Electric Piano, Organ), which gets the
- *  chord-colour / voicing / two-hand comp engine. Other families are unchanged. */
-function isKeyboard(instrumentId: InstrumentId): boolean {
-  return getInstrument(instrumentId).family === "keys";
-}
-
-/** The chord quality a track actually plays. Keyboards upgrade triads to the
- *  current colour level (7th/9th); other instruments keep the base quality. */
-function effectiveQuality(step: ChordStep, instrumentId: InstrumentId, ctx: RenderCtx): string {
-  if (!isKeyboard(instrumentId)) return step.quality;
-  return extendQuality(step.root, step.quality, ctx.tonic, ctx.mode, step.ext ?? ctx.chordQuality);
-}
-
-/** Turn a track into the bar-event closure the scheduler runs. Every track
- *  follows the shared progression (barIndex picks the chord) and renders its
- *  own step pattern over it. */
-function buildScheduled(t: Track, progression: ChordStep[], ctx: RenderCtx): ScheduledTrack {
-  const def = getInstrument(t.instrumentId);
-  return {
-    id: t.id,
-    instrumentId: t.instrumentId,
-    volume: t.volume,
-    muted: t.muted,
-    solo: t.solo,
-    noteLength: t.noteLength,
-    reverb: t.reverb,
-    getBarEvents: (barSeconds, barIndex) => {
-      if (progression.length === 0) return [];
-      const chord = progression[barIndex % progression.length];
-      const quality = effectiveQuality(chord, t.instrumentId, ctx);
-      const intervals = chordIntervals(quality);
-      const rootPc = noteToSemitone(chord.root) ?? 0;
-      const chordNotes = def.isDrums ? [] : chordToMidi(chord.root, quality, t.octave);
-      const rootMidi = chordNotes[0] ?? 60;
-      return renderPattern(t.pattern, {
-        chordNotes,
-        rootMidi,
-        barSeconds,
-        octave: t.octave,
-        rootPc,
-        intervals,
-      });
-    },
-  };
-}
-
-/** Default pattern + octave when switching to a new instrument. */
-function instrumentDefaults(id: InstrumentId): { pattern: Pattern; octave: number } {
-  const def = getInstrument(id);
-  return { pattern: defaultPattern(def.family), octave: def.octave };
-}
-
-const DEFAULT_NOTE_LENGTH = 1;
-const DEFAULT_REVERB = 0.2;
+type LoopMode = "song" | "section";
 
 export function StudioApp() {
   const engine = useMemo(() => getEngine(), []);
 
-  const [bpm, setBpm] = useState(100);
-  const [masterVolume, setMasterVolume] = useState(0.9);
-  const [swing, setSwing] = useState(0);
-  const [humanize, setHumanize] = useState(0.5);
+  const [song, setSong] = useState<Song | null>(null);
+  const [selection, setSelection] = useState<Selection>({ kind: "song" });
+  const [loopMode, setLoopMode] = useState<LoopMode>("song");
+  const [anchorId, setAnchorId] = useState<string | null>(null); // section to loop
+  const [playFromId, setPlayFromId] = useState<string | null>(null); // where a whole-song play starts
   const [isPlaying, setIsPlaying] = useState(false);
   const [playStep, setPlayStep] = useState<number | null>(null);
+  const [saveState, setSaveState] = useState<"saving" | "saved" | "error">("saved");
 
-  // The song key drives which chords are suggested.
-  const [tonic, setTonic] = useState("C");
-  const [mode, setMode] = useState<Mode>("major");
-  const [showAllChords, setShowAllChords] = useState(false);
-  const [showCustomize, setShowCustomize] = useState(false);
-  const [stepTab, setStepTab] = useState<"chords" | "groove" | "sound">(
-    "chords",
-  );
-  const [mobileStartMode, setMobileStartMode] = useState<"landing" | "chord">(
-    "landing",
-  );
-  const [mobileSheet, setMobileSheet] = useState<"ideas" | "instrument" | null>(
-    null,
-  );
-  // Desktop layout: "full" = all steps in view (3a), "focus" = one step at a
-  // time with the progression pinned (3b).
-  const [viewMode, setViewMode] = useState<"full" | "focus">("full");
+  // The scheduler reads these on every bar, so edits land without restarting.
+  const songRef = useRef<Song | null>(null);
+  const transportRef = useRef<TransportState>({ loop: "song", sectionId: null });
+  const scheduledRef = useRef<ScheduledTrack[]>([]);
 
-  // Global keyboard chord colour: diatonic triads → 7ths → 9ths.
-  const [chordQuality, setChordQuality] = useState<ChordExt>("triad");
-
-  // The loop's chord changes (one bar per step), shared by every layer. Starts
-  // empty so it's obvious the progression is yours to build.
-  const [progression, setProgression] = useState<ChordStep[]>([]);
-  const [editIndex, setEditIndex] = useState(0);
-
-  const [selection, setSelection] = useState<Selection>(() => ({
-    instrumentId: "acoustic_guitar",
-    ...instrumentDefaults("acoustic_guitar"),
-    noteLength: DEFAULT_NOTE_LENGTH,
-    reverb: DEFAULT_REVERB,
-  }));
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const nextId = useRef(1);
-  const [projectReady, setProjectReady] = useState(false);
-  const [saveState, setSaveState] = useState<"saving" | "saved" | "error">(
-    "saving",
-  );
-
-  // Restore after mount so the server and first client render stay identical.
-  // The ready flag prevents the empty defaults from overwriting the saved
-  // project before restoration finishes.
+  // Restore after mount so server and client render the same empty shell.
   useEffect(() => {
-    const saved = loadStudioProject();
-    if (saved) {
-      setBpm(saved.bpm);
-      setMasterVolume(saved.masterVolume);
-      setSwing(saved.swing);
-      setHumanize(saved.humanize);
-      setTonic(saved.tonic);
-      setMode(saved.mode);
-      setChordQuality(saved.chordQuality);
-      setProgression(saved.progression);
-      setSelection(saved.selection);
-      setTracks(saved.tracks);
-      setViewMode(saved.viewMode);
-      const largestTrackId = saved.tracks.reduce((largest, track) => {
-        const number = Number(track.id.match(/^t(\d+)$/)?.[1] ?? 0);
-        return Math.max(largest, number);
-      }, 0);
-      nextId.current = largestTrackId + 1;
-    }
-    setProjectReady(true);
+    const loaded = loadSong() ?? createSong();
+    setSong(loaded);
+    const first = loaded.sections[0]?.id ?? null;
+    setSelection(first ? { kind: "section", sectionId: first } : { kind: "song" });
+    setAnchorId(first);
+    setPlayFromId(first);
   }, []);
 
-  // Studio is intentionally usable without an account. A short debounce keeps
-  // edits durable without writing localStorage on every sequencer tap.
-  useEffect(() => {
-    if (!projectReady) return;
-    setSaveState("saving");
-
-    const timeout = window.setTimeout(() => {
-      const project: StudioProjectSnapshot = {
-        version: 1,
-        updatedAt: Date.now(),
-        bpm,
-        masterVolume,
-        swing,
-        humanize,
-        tonic,
-        mode,
-        chordQuality,
-        progression,
-        selection,
-        tracks,
-        viewMode,
-      };
-      setSaveState(saveStudioProject(project) ? "saved" : "error");
-    }, 400);
-
-    return () => window.clearTimeout(timeout);
-  }, [
-    projectReady,
-    bpm,
-    masterVolume,
-    swing,
-    humanize,
-    tonic,
-    mode,
-    chordQuality,
-    progression,
-    selection,
-    tracks,
-    viewMode,
-  ]);
-
-  const hasChords = progression.length > 0;
-  const step = hasChords
-    ? progression[Math.min(editIndex, progression.length - 1)]
-    : undefined;
-  // A safe chord for UI math (voicing/note math) when the progression is empty.
-  const activeStep: ChordStep = step ?? { root: "C", quality: "maj" };
-  const keyboardSelected = isKeyboard(selection.instrumentId);
-
-  // Chord names shown in the UI reflect the active colour (triad → 7th → 9th).
-  const renderCtx = useMemo<RenderCtx>(
-    () => ({ tonic, mode, chordQuality }),
-    [tonic, mode, chordQuality],
+  const read = useCallback(
+    () => ({ song: songRef.current!, transport: transportRef.current }),
+    [],
   );
-  const labelFor = useCallback(
-    (s: ChordStep) =>
-      chordSymbol(s.root, extendQuality(s.root, s.quality, tonic, mode, s.ext ?? chordQuality)),
-    [tonic, mode, chordQuality],
+  useEffect(() => {
+    songRef.current = song;
+    if (song) scheduledRef.current = buildScheduledTracks(read);
+  }, [song, read]);
+
+  const transport = useMemo<TransportState>(
+    () => ({ loop: loopMode, sectionId: loopMode === "section" ? anchorId : playFromId }),
+    [loopMode, anchorId, playFromId],
   );
-  const progressionLabels = useMemo(
-    () => progression.map(labelFor),
-    [progression, labelFor],
-  );
+  useEffect(() => {
+    transportRef.current = transport;
+  }, [transport]);
 
-  // Live snapshot the scheduler reads each bar.
-  const scheduled = useMemo<ScheduledTrack[]>(() => {
-    const preview = buildScheduled(
-      { id: "preview", ...selection, volume: PREVIEW_VOLUME, muted: false, solo: false },
-      progression,
-      renderCtx,
-    );
-    return [preview, ...tracks.map((t) => buildScheduled(t, progression, renderCtx))];
-  }, [selection, tracks, progression, renderCtx]);
-
-  const scheduledRef = useRef<ScheduledTrack[]>(scheduled);
+  // Keep the running engine in step with song-level settings.
+  const bpm = song?.bpm;
+  const swing = song?.swing;
+  const humanize = song?.humanize;
   useEffect(() => {
-    scheduledRef.current = scheduled;
-  }, [scheduled]);
-
-  // Keep the running transport in step with the controls.
-  useEffect(() => {
-    engine.setBpm(bpm);
-  }, [engine, bpm]);
-  useEffect(() => {
-    engine.setMasterVolume(masterVolume);
-  }, [engine, masterVolume]);
-  useEffect(() => {
-    engine.setSwing(swing);
-  }, [engine, swing]);
-  useEffect(() => {
-    engine.setHumanize(humanize);
-  }, [engine, humanize]);
+    if (bpm != null) engine.setBpm(bpm);
+    if (swing != null) engine.setSwing(swing);
+    if (humanize != null) engine.setHumanize(humanize);
+  }, [engine, bpm, swing, humanize]);
   useEffect(() => () => engine.stop(), [engine]);
 
-  // Drive the step playhead off the audio clock (only re-render on step change).
+  // Autosave (debounced so sequencer taps don't hammer localStorage).
+  useEffect(() => {
+    if (!song) return;
+    setSaveState("saving");
+    const t = window.setTimeout(() => setSaveState(saveSong(song) ? "saved" : "error"), 400);
+    return () => window.clearTimeout(t);
+  }, [song]);
+
+  // Step playhead for the pattern editor, off the audio clock.
   useEffect(() => {
     if (!isPlaying) {
       setPlayStep(null);
@@ -402,1325 +133,348 @@ export function StudioApp() {
     return () => cancelAnimationFrame(raf);
   }, [isPlaying, engine]);
 
-  const handlePlay = useCallback(async () => {
-    await engine.resume();
-    engine.setBpm(bpm);
-    engine.setMasterVolume(masterVolume);
-    engine.setSwing(swing);
-    engine.setHumanize(humanize);
-    engine.start(() => scheduledRef.current);
-    setIsPlaying(true);
-  }, [engine, bpm, masterVolume, swing, humanize]);
+  const getPlayhead = useCallback((): PlayheadPosition | null => {
+    const ph = engine.getPlayhead();
+    const s = songRef.current;
+    if (!ph || !s) return null;
+    const pos = resolveTransportBar(s, transportRef.current, ph.barIndex);
+    return pos ? { songBar: pos.songBar, phase: ph.phase, sectionId: pos.section.id } : null;
+  }, [engine]);
+
+  // ── Transport ──
+  const start = useCallback(
+    async (t: TransportState) => {
+      const s = songRef.current;
+      if (!s) return;
+      transportRef.current = t;
+      await engine.resume();
+      engine.setBpm(s.bpm);
+      engine.setSwing(s.swing);
+      engine.setHumanize(s.humanize);
+      engine.stop();
+      engine.start(() => scheduledRef.current);
+      setIsPlaying(true);
+    },
+    [engine],
+  );
+
+  const handlePlay = useCallback(() => {
+    const s = songRef.current;
+    if (!s) return;
+    const first = s.sections[0]?.id ?? null;
+    if (loopMode === "song") setPlayFromId(first);
+    void start({ loop: loopMode, sectionId: loopMode === "section" ? (anchorId ?? first) : first });
+  }, [loopMode, anchorId, start]);
 
   const handleStop = useCallback(() => {
     engine.stop();
     setIsPlaying(false);
   }, [engine]);
 
-  const handleRestart = useCallback(async () => {
-    engine.stop();
-    await handlePlay();
-  }, [engine, handlePlay]);
+  const changeLoopMode = (mode: LoopMode) => {
+    setLoopMode(mode);
+    if (!isPlaying) return;
+    const first = songRef.current?.sections[0]?.id ?? null;
+    void start({ loop: mode, sectionId: mode === "section" ? (anchorId ?? first) : playFromId ?? first });
+  };
 
-  const feelLabel = swing < 0.05 ? "Straight" : swing < 0.35 ? "Laid-back" : "Swing";
+  const loopSection = (id: string) => {
+    setAnchorId(id);
+    setLoopMode("section");
+    void start({ loop: "section", sectionId: id });
+  };
 
-  const selectInstrument = useCallback((id: InstrumentId) => {
-    setSelection((s) => ({ ...s, instrumentId: id, ...instrumentDefaults(id) }));
+  const playFrom = (id: string) => {
+    setPlayFromId(id);
+    setLoopMode("song");
+    void start({ loop: "song", sectionId: id });
+  };
+
+  // ── Editing ──
+  const update = useCallback((fn: (s: Song) => Song) => {
+    setSong((s) => (s ? fn(s) : s));
   }, []);
-  const selectMobileInstrument = useCallback(
-    (id: InstrumentId) => {
-      selectInstrument(id);
-      setMobileSheet(null);
-    },
-    [selectInstrument],
+
+  const select = useCallback((sel: Selection) => {
+    setSelection(sel);
+    if (sel.kind === "section" || sel.kind === "clip") setAnchorId(sel.sectionId);
+  }, []);
+
+  const updateSection = (id: string, patch: Partial<Section>) =>
+    update((s) => ({ ...s, sections: s.sections.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+
+  const setSectionKind = (id: string, kind: SectionKind) =>
+    update((s) => {
+      const section = s.sections.find((x) => x.id === id);
+      if (!section) return s;
+      const oldLabel = SECTION_KINDS.find((k) => k.id === section.kind)?.label ?? "";
+      const auto = section.name === oldLabel || new RegExp(`^${oldLabel} \\d+$`).test(section.name);
+      const others = s.sections.filter((x) => x.id !== id);
+      const name = auto ? nextSectionName(others, kind) : section.name;
+      return { ...s, sections: s.sections.map((x) => (x.id === id ? { ...x, kind, name } : x)) };
+    });
+
+  const setProgression = (id: string, chords: ChordStep[], fromTemplate = false) =>
+    update((s) => ({
+      ...s,
+      sections: s.sections.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              progression: chords,
+              bars: fromTemplate
+                ? barsForProgression(chords.length, x.bars)
+                : Math.max(x.bars, chords.length),
+            }
+          : x,
+      ),
+    }));
+
+  const colour = (id: string, ext: ChordExt) =>
+    update((s) => ({
+      ...s,
+      sections: s.sections.map((x) => (x.id === id ? colourSection(x, s.tonic, s.mode, ext) : x)),
+    }));
+
+  const addSection = (kind: SectionKind) => {
+    if (!song || song.sections.length >= MAX_SECTIONS) return;
+    // A new Chorus copies the existing chorus's chords; otherwise the last section's.
+    const twin = [...song.sections].reverse().find((x) => x.kind === kind);
+    const source = twin ?? song.sections[song.sections.length - 1];
+    const section = createSection(song.sections, kind, source?.progression ?? []);
+    update((s) => ({ ...s, sections: [...s.sections, section] }));
+    select({ kind: "section", sectionId: section.id });
+  };
+
+  const duplicate = (id: string) => {
+    if (!song) return;
+    const next = duplicateSection(song, id);
+    if (next === song) return;
+    const index = next.sections.findIndex((x) => x.id === id);
+    update(() => next);
+    select({ kind: "section", sectionId: next.sections[index + 1].id });
+  };
+
+  const remove = (id: string) => {
+    if (!song) return;
+    const next = removeSection(song, id);
+    if (next === song) return;
+    const fallback = next.sections[0].id;
+    update(() => next);
+    setSelection({ kind: "section", sectionId: fallback });
+    setAnchorId((a) => (a === id ? fallback : a));
+    setPlayFromId((p) => (p === id ? fallback : p));
+  };
+
+  const updateTrack = useCallback(
+    (id: string, fn: (t: Track) => Track) =>
+      update((s) => ({ ...s, tracks: s.tracks.map((t) => (t.id === id ? fn(t) : t)) })),
+    [update],
   );
 
-  // ── Pattern editing ──
-  const toggleStep = useCallback((index: number) => {
-    setSelection((s) => {
-      if (s.pattern.kind !== "melodic") return s;
-      const hits = s.pattern.hits.map((on, i) => (i === index ? !on : on));
-      return { ...s, pattern: { ...s.pattern, hits } };
-    });
-  }, []);
-  const toggleDrum = useCallback((voice: DrumVoice, index: number) => {
-    setSelection((s) => {
-      if (s.pattern.kind !== "drums") return s;
-      const row = s.pattern.rows[voice].map((on, i) => (i === index ? !on : on));
-      return { ...s, pattern: { ...s.pattern, rows: { ...s.pattern.rows, [voice]: row } } };
-    });
-  }, []);
-  const setArticulation = useCallback((a: Articulation) => {
-    setSelection((s) =>
-      s.pattern.kind === "melodic"
-        ? { ...s, pattern: { ...s.pattern, articulation: a } }
-        : s,
-    );
-  }, []);
-  const applyPreset = useCallback((presetId: string) => {
-    setSelection((s) => {
-      const family = getInstrument(s.instrumentId).family;
-      const preset = presetsFor(family).find((p) => p.id === presetId);
-      return preset ? { ...s, pattern: clonePattern(preset.pattern) } : s;
-    });
-  }, []);
-  const clearPattern = useCallback(() => {
-    setSelection((s) => ({ ...s, pattern: emptyPatternLike(s.pattern) }));
-  }, []);
-
-  // ── Keyboard comp editing (left hand / right hand / voicing) ──
-  const setComp = useCallback((patch: Partial<Omit<CompPattern, "kind">>) => {
-    setSelection((s) =>
-      s.pattern.kind === "comp" ? { ...s, pattern: { ...s.pattern, ...patch } } : s,
-    );
-  }, []);
-
-  // ── Current part's sound (sustain + reverb) ──
-  const setSelNoteLength = useCallback((v: number) => {
-    setSelection((s) => ({ ...s, noteLength: v }));
-  }, []);
-  const setSelReverb = useCallback((v: number) => {
-    setSelection((s) => ({ ...s, reverb: v }));
-  }, []);
-
-  // ── Progression editing ──
-  const setStep = useCallback(
-    (patch: Partial<ChordStep>) => {
-      setProgression((p) => p.map((s, i) => (i === editIndex ? { ...s, ...patch } : s)));
-    },
-    [editIndex],
-  );
-  const addStep = useCallback(() => {
-    setProgression((p) => {
-      const copy = p[Math.min(editIndex, p.length - 1)] ?? { root: "C", quality: "maj" };
-      const next = [...p, { ...copy }];
-      setEditIndex(next.length - 1);
-      return next;
-    });
-  }, [editIndex]);
-  const removeStep = useCallback((index: number) => {
-    setProgression((p) => {
-      const next = p.filter((_, i) => i !== index);
-      setEditIndex((cur) => Math.max(0, Math.min(cur, next.length - 1)));
-      return next;
-    });
-  }, []);
-  const removeMobileStep = useCallback(() => {
-    const removingLastBar = progression.length === 1;
-    removeStep(editIndex);
-    if (removingLastBar) {
-      setMobileStartMode("landing");
-      setStepTab("chords");
-    }
-  }, [editIndex, progression.length, removeStep]);
-  // Pick a chord from the "chords in key" palette: seed the first chord when the
-  // progression is empty, otherwise replace the selected bar.
-  const pickChord = useCallback(
-    (root: string, quality: string) => {
-      setProgression((p) => {
-        if (p.length === 0) {
-          setEditIndex(0);
-          return [{ root, quality }];
-        }
-        return p.map((s, i) => (i === editIndex ? { ...s, root, quality } : s));
-      });
-    },
-    [editIndex],
-  );
-  // A chord captured from a MIDI keyboard appends to the progression.
-  const addChordFromMidi = useCallback((root: string, quality: string) => {
-    setProgression((p) => {
-      const next = [...p, { root, quality }];
-      setEditIndex(next.length - 1);
-      return next;
-    });
-  }, []);
-  const applyTemplate = useCallback(
-    (degrees: number[], ext?: ChordExt) => {
-      const chords = progressionFromDegrees(tonic, mode, degrees).map((c) => ({
-        root: c.root,
-        quality: c.quality,
-      }));
-      setProgression(chords);
-      setEditIndex(0);
-      if (ext) setChordQuality(ext);
-    },
-    [tonic, mode],
+  const clipOn = useCallback(
+    (trackId: string, sectionId: string, on: boolean) =>
+      updateTrack(trackId, (t) => setClip(t, sectionId, { on })),
+    [updateTrack],
   );
 
-  // ── Genre style bundles — one tap sets colour + voicing + feel + tempo ──
-  const applyStyle = useCallback((style: "jazz" | "neosoul") => {
-    if (style === "jazz") {
-      setBpm(120);
-      setChordQuality("7th");
-      setSwing(0.5);
-      setSelection({
-        instrumentId: "piano",
-        pattern: { kind: "comp", leftHand: "walking", rightHand: "charleston", voicing: "shell" },
-        octave: getInstrument("piano").octave,
-        noteLength: 1,
-        reverb: 0.2,
-      });
-    } else {
-      setBpm(80);
-      setChordQuality("9th");
-      setSwing(0.28);
-      setSelection({
-        instrumentId: "electric_piano",
-        pattern: { kind: "comp", leftHand: "octaves", rightHand: "neosoul", voicing: "rootless" },
-        octave: getInstrument("electric_piano").octave,
-        noteLength: 1.6,
-        reverb: 0.45,
-      });
-    }
-  }, []);
+  const addTrack = (instrumentId: InstrumentId) => {
+    if (!song || song.tracks.length >= MAX_TRACKS) return;
+    const track = createTrack(instrumentId);
+    update((s) => ({ ...s, tracks: [...s.tracks, track] }));
+    setSelection({ kind: "track", trackId: track.id });
+  };
 
-  const applyTemplateFromSheet = useCallback(
-    (degrees: number[], ext?: ChordExt) => {
-      applyTemplate(degrees, ext);
-      setStepTab("chords");
-      setMobileSheet(null);
-    },
-    [applyTemplate],
-  );
+  const removeTrack = (id: string) => {
+    update((s) => ({ ...s, tracks: s.tracks.filter((t) => t.id !== id) }));
+    setSelection({ kind: "song" });
+  };
 
-  const applyStyleFromSheet = useCallback(
-    (style: "jazz" | "neosoul") => {
-      applyStyle(style);
-      setStepTab("groove");
-      setMobileSheet(null);
-    },
-    [applyStyle],
-  );
+  const changeInstrument = (trackId: string, instrumentId: InstrumentId) =>
+    updateTrack(trackId, (t) => {
+      const def = getInstrument(instrumentId);
+      if (getInstrument(t.instrumentId).family === def.family) {
+        return { ...t, instrumentId, octave: def.octave };
+      }
+      // A different family means a different kind of pattern: reset the
+      // grooves but keep where the track plays.
+      const clips = Object.fromEntries(
+        Object.entries(t.clips).map(([k, c]) => [k, { on: c.on }]),
+      );
+      return { ...t, instrumentId, octave: def.octave, pattern: defaultPattern(def.family), clips };
+    });
 
-  // ── Layers ──
-  const lock = useCallback(() => {
-    const id = `t${nextId.current++}`;
-    setTracks((ts) => [
-      ...ts,
-      {
-        id,
-        ...selection,
-        pattern: clonePattern(selection.pattern),
-        volume: 0.85,
-        muted: false,
-        solo: false,
-      },
-    ]);
-  }, [selection]);
-  const layerAndStartNextPart = useCallback(() => {
-    const nextInstrument = INSTRUMENTS.find(
-      (instrument) =>
-        instrument.id !== selection.instrumentId &&
-        !tracks.some((track) => track.instrumentId === instrument.id),
+  const setClipPattern = (trackId: string, sectionId: string, pattern: Pattern) =>
+    updateTrack(trackId, (t) =>
+      t.clips[sectionId]?.pattern ? setClip(t, sectionId, { pattern }) : { ...t, pattern },
     );
 
-    lock();
-    if (nextInstrument) selectInstrument(nextInstrument.id);
-    setStepTab("groove");
-    setMobileSheet("instrument");
-  }, [lock, selectInstrument, selection.instrumentId, tracks]);
-  const updateTrack = useCallback((id: string, patch: Partial<Track>) => {
-    setTracks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  }, []);
-  const removeTrack = useCallback((id: string) => {
-    setTracks((ts) => ts.filter((t) => t.id !== id));
-  }, []);
-
-  // ── Derived view data ──
-  const family = getInstrument(selection.instrumentId).family;
-  const lockedInstruments = new Set(tracks.map((t) => t.instrumentId));
-  const isComp = selection.pattern.kind === "comp";
-
-  const progressionCards: ProgressionCard[] = progression.map((s, i) => {
-    const effQ = extendQuality(s.root, s.quality, tonic, mode, s.ext ?? chordQuality);
-    const dia = diatonicChords(tonic, mode).find(
-      (d) =>
-        noteToSemitone(d.root) === noteToSemitone(s.root) && d.quality === s.quality,
+  const setClipCustom = (trackId: string, sectionId: string, custom: boolean) =>
+    updateTrack(trackId, (t) =>
+      custom ? forkClipPattern(t, sectionId) : unforkClipPattern(t, sectionId),
     );
-    return {
-      label: progressionLabels[i],
-      numeral: dia?.numeral ?? "—",
-      notes: chordNoteNames(s.root, effQ),
-      ext: s.ext,
+
+  const exportMidi = () => {
+    if (!song) return;
+    const bytes = songToMidi(song);
+    const blob = new Blob([bytes as unknown as BlobPart], { type: "audio/midi" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = midiFileName(song);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const newSong = () => {
+    if (!window.confirm("Start a new song? The current one on this device is replaced.")) return;
+    handleStop();
+    const fresh = createSong();
+    update(() => fresh);
+    const first = fresh.sections[0].id;
+    setSelection({ kind: "section", sectionId: first });
+    setAnchorId(first);
+    setPlayFromId(first);
+  };
+
+  // Space plays/stops; Delete takes the selected block out of its section.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA" || el.isContentEditable)
+      )
+        return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (isPlaying) handleStop();
+        else handlePlay();
+      } else if ((e.key === "Backspace" || e.key === "Delete") && selection.kind === "clip") {
+        e.preventDefault();
+        clipOn(selection.trackId, selection.sectionId, false);
+      }
     };
-  });
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isPlaying, handlePlay, handleStop, selection, clipOn]);
 
-  const cycleColor = () => {
-    const idx = EXT_CYCLE.findIndex((e) => e === activeStep.ext);
-    setStep({ ext: EXT_CYCLE[(idx + 1) % EXT_CYCLE.length] });
-  };
+  if (!song) return <div className="flex-1" aria-busy="true" />;
 
-  const grooveOptions: GrooveOption[] = isComp
-    ? RH_GROOVE_ORDER.map((id) => ({ id, ...RH_GROOVE_META[id] }))
-    : presetsFor(family).map((pr) => ({
-        id: pr.id,
-        name: pr.label,
-        desc: PRESET_DESC[pr.id] ?? "",
-        glyph: glyphFromPattern(pr.pattern),
-      }));
-  const selectedGrooveId =
-    selection.pattern.kind === "comp"
-      ? selection.pattern.rightHand
-      : presetsFor(family).find((pr) => samePattern(pr.pattern, selection.pattern))
-          ?.id ?? null;
-  const onSelectGroove = (id: string) => {
-    if (selection.pattern.kind === "comp")
-      setComp({ rightHand: id as RightHandPattern });
-    else applyPreset(id);
-  };
+  // ── Inspector ──
+  const sectionOf = (id: string) => song.sections.find((x) => x.id === id);
+  const trackOf = (id: string) => song.tracks.find((x) => x.id === id);
+  const liveInstrument: InstrumentId =
+    song.tracks.find((t) => !getInstrument(t.instrumentId).isDrums)?.instrumentId ?? "piano";
 
-  const rootPc = noteToSemitone(activeStep.root) ?? 0;
-  const effQuality = extendQuality(
-    activeStep.root,
-    activeStep.quality,
-    tonic,
-    mode,
-    activeStep.ext ?? chordQuality,
-  );
-  const rhNotes = chordNoteNames(activeStep.root, effQuality);
-  const chordPcs = chordIntervals(effQuality).map((i) => (rootPc + i) % 12);
-  const bassPcs = [rootPc, (rootPc + 7) % 12];
-
-  const feelValue = swing < 0.05 ? "straight" : swing < 0.35 ? "laidback" : "swing";
-  const setFeel = (f: string) =>
-    setSwing(f === "straight" ? 0 : f === "laidback" ? 0.28 : 0.5);
-
-  const railLabel = "text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim";
-  const stepBadge = (n: number) => (
-    <span className="flex size-5 items-center justify-center rounded-full bg-bg-higher text-[10px] font-semibold text-text-dim">
-      {n}
-    </span>
-  );
-
-  // ── Reusable content blocks ──
-  const colorSeg = (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] text-text-muted">Color</span>
-      <div className="flex overflow-hidden rounded-full border border-line">
-        {(["triad", "7th", "9th"] as ChordExt[]).map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setChordQuality(c)}
-            className={cn(
-              "min-h-10 px-3 text-[11px] font-semibold",
-              chordQuality === c ? "bg-accent text-black" : "text-text-muted",
-            )}
-          >
-            {c === "triad" ? "Triad" : c}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const tryRow = (
-    <div className="flex flex-wrap items-center gap-2">
-      <Suggestions onApply={applyTemplate} />
-      <StylePresets onApply={applyStyle} />
-    </div>
-  );
-
-  const diatonicRow = (
-    <div>
-      <DiatonicChords
-        tonic={tonic}
-        mode={mode}
-        ext={chordQuality}
-        current={hasChords ? activeStep : { root: "", quality: "" }}
-        onPick={pickChord}
-      />
-      <button
-        type="button"
-        onClick={() => setShowAllChords((v) => !v)}
-        className="mt-1 text-[12px] font-medium text-accent hover:text-accent-soft"
-      >
-        {showAllChords ? "Hide other chords" : "More chords →"}
-      </button>
-      {showAllChords ? (
-        <div className="mt-2">
-          <ChordGrid
-            root={activeStep.root}
-            quality={activeStep.quality}
-            onRoot={(root) => pickChord(root, activeStep.quality)}
-            onQuality={(quality) => pickChord(activeStep.root, quality)}
-          />
-        </div>
-      ) : null}
-      <div className="mt-3">
-        <MidiPanel
-          instrumentId={selection.instrumentId}
-          onAddChord={addChordFromMidi}
+  let inspector: React.ReactNode = null;
+  if (selection.kind === "section") {
+    const section = sectionOf(selection.sectionId);
+    if (section) {
+      inspector = (
+        <SectionInspector
+          song={song}
+          section={section}
+          index={song.sections.indexOf(section)}
+          liveInstrument={liveInstrument}
+          isLooping={isPlaying && loopMode === "section" && anchorId === section.id}
+          onChange={(patch) => updateSection(section.id, patch)}
+          onKind={(kind) => setSectionKind(section.id, kind)}
+          onProgression={(chords) => setProgression(section.id, chords)}
+          onTemplate={(chords) => setProgression(section.id, chords, true)}
+          onColour={(ext) => colour(section.id, ext)}
+          onLoop={() => loopSection(section.id)}
+          onPlayFrom={() => playFrom(section.id)}
+          onDuplicate={() => duplicate(section.id)}
+          onMove={(delta) => update((s) => moveSection(s, section.id, delta))}
+          onRemove={() => remove(section.id)}
         />
-      </div>
-    </div>
-  );
-
-  const handsPanel = (
-    <div className="rounded-2xl border border-line-soft bg-bg-card p-4">
-      <div className={railLabel}>What your hands play</div>
-      {!hasChords ? (
-        <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
-          Pick a chord above to see the voicing and what each hand plays.
-        </p>
-      ) : isComp ? (
-        <>
-          <div className="mt-3">
-            <HandsKeyboard bass={bassPcs} chord={chordPcs} width={320} />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-[3px]" style={{ background: "#a76a24" }} />
-              Left hand · {activeStep.root} octaves
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-[3px]" style={{ background: "#f5a524" }} />
-              Right hand ·{" "}
-              {selection.pattern.kind === "comp" ? selection.pattern.voicing : ""}
-            </span>
-          </div>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
-            The left hand holds the bass; the right hand comps{" "}
-            {rhNotes.slice(1, 4).join("·")} above it. Updates live as you pick a
-            groove.
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="mt-3 flex gap-1">
-            {selection.pattern.kind === "melodic"
-              ? selection.pattern.hits.map((on, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "h-9 flex-1 rounded-[4px] border",
-                      on ? "border-accent bg-accent/80" : "border-line bg-[#16161d]",
-                      i % 4 === 0 ? "ml-1 first:ml-0" : "",
-                    )}
-                  />
-                ))
-              : null}
-          </div>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
-            Pick a groove above, or open Customize to shape every step by hand.
-          </p>
-        </>
-      )}
-    </div>
-  );
-
-  const fineTunePanel = showCustomize ? (
-    <div className="rounded-2xl border border-line-soft bg-bg-card p-3">
-      <StepSequencer
-        instrumentId={selection.instrumentId}
-        pattern={selection.pattern}
-        playStep={playStep}
-        onToggleStep={toggleStep}
-        onToggleDrum={toggleDrum}
-        onArticulation={setArticulation}
-        onPreset={applyPreset}
-        onClear={clearPattern}
-        onLeftHand={(v) => setComp({ leftHand: v })}
-        onRightHand={(v) => setComp({ rightHand: v })}
-        onVoicing={(v) => setComp({ voicing: v })}
-      />
-    </div>
-  ) : null;
-
-  const grooveArea = (
-    <div className="flex flex-col gap-3">
-      <div className="grid gap-3 xl:grid-cols-[1fr_320px]">
-        <GrooveCards
-          options={grooveOptions}
-          selectedId={selectedGrooveId}
-          onSelect={onSelectGroove}
+      );
+    }
+  } else if (selection.kind === "clip") {
+    const track = trackOf(selection.trackId);
+    const section = sectionOf(selection.sectionId);
+    if (track && section) {
+      inspector = (
+        <ClipInspector
+          track={track}
+          section={section}
+          playStep={playStep}
+          onOn={(on) => clipOn(track.id, section.id, on)}
+          onCustom={(custom) => setClipCustom(track.id, section.id, custom)}
+          onPattern={(p) => setClipPattern(track.id, section.id, p)}
         />
-        {handsPanel}
-      </div>
-      {fineTunePanel}
-    </div>
-  );
-
-  const customizeToggle = (
-    <button
-      type="button"
-      onClick={() => setShowCustomize((v) => !v)}
-      className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[11px] text-text-soft hover:bg-bg-higher"
-    >
-      {showCustomize ? "Hide fine-tune" : isComp ? "Customize hands" : "Customize"}
-    </button>
-  );
-
-  const soundControls = (
-    <div className="flex flex-col gap-3">
-      <div className="xl:hidden">
-        <Slider
-          label="Output"
-          value={masterVolume}
-          display={`${Math.round(masterVolume * 100)}%`}
-          min={0}
-          max={1}
-          onChange={setMasterVolume}
+      );
+    }
+  } else if (selection.kind === "track") {
+    const track = trackOf(selection.trackId);
+    if (track) {
+      inspector = (
+        <TrackInspector
+          song={song}
+          track={track}
+          playStep={playStep}
+          onChange={(patch) => updateTrack(track.id, (t) => ({ ...t, ...patch }))}
+          onInstrument={(id) => changeInstrument(track.id, id)}
+          onPattern={(p) => updateTrack(track.id, (t) => ({ ...t, pattern: p }))}
+          onClipOn={(sectionId, on) => clipOn(track.id, sectionId, on)}
+          onRemove={() => removeTrack(track.id)}
         />
-      </div>
-      <Slider
-        label="Note length"
-        value={selection.noteLength}
-        display={lengthLabel(selection.noteLength)}
-        min={0.3}
-        max={2}
-        onChange={setSelNoteLength}
+      );
+    }
+  }
+  if (!inspector) {
+    inspector = (
+      <SongInspector
+        song={song}
+        onChange={(patch) => update((s) => ({ ...s, ...patch }))}
+        onExportMidi={exportMidi}
+        onNewSong={newSong}
       />
-      <Slider
-        label="Reverb"
-        value={selection.reverb}
-        display={reverbLabel(selection.reverb)}
-        min={0}
-        max={1}
-        onChange={setSelReverb}
-      />
-      <div>
-        <div className="mb-1.5 text-xs text-text-muted">Feel</div>
-        <div className="flex overflow-hidden rounded-full border border-line">
-          {[
-            ["straight", "Straight"],
-            ["laidback", "Laid-back"],
-            ["swing", "Swing"],
-          ].map(([v, l]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setFeel(v)}
-              className={cn(
-                "flex-1 px-3 py-1.5 text-[11px] font-semibold",
-                feelValue === v ? "bg-accent text-black" : "text-text-muted",
-              )}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
-      <Slider
-        label="Humanize"
-        value={humanize}
-        display={`${Math.round(humanize * 100)}%`}
-        min={0}
-        max={1}
-        onChange={setHumanize}
-      />
-    </div>
-  );
-
-  const layersBlock =
-    tracks.length === 0 ? (
-      <div className="rounded-2xl border border-dashed border-[#2e2e38] p-6 text-center text-[11px] leading-relaxed text-text-dim">
-        No layers yet. Locked loops stack here and play together under one
-        transport.
-      </div>
-    ) : (
-      <div className="flex flex-col gap-2">
-        {tracks.map((t) => (
-          <div key={t.id} className="rounded-xl border border-line bg-bg-raised p-3">
-            <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold">
-                  {getInstrument(t.instrumentId).label}
-                </div>
-                <div className="truncate text-[11px] text-text-muted">
-                  {patternSummary(t.pattern)}
-                </div>
-              </div>
-              <button
-                type="button"
-                aria-label="Mute"
-                onClick={() => updateTrack(t.id, { muted: !t.muted })}
-                className={cn(
-                  "flex size-10 items-center justify-center rounded-lg border text-[10px] font-bold",
-                  t.muted ? "border-accent text-accent" : "border-line text-text-muted",
-                )}
-              >
-                M
-              </button>
-              <button
-                type="button"
-                aria-label="Solo"
-                onClick={() => updateTrack(t.id, { solo: !t.solo })}
-                className={cn(
-                  "flex size-10 items-center justify-center rounded-lg text-[10px] font-bold",
-                  t.solo ? "bg-accent text-black" : "border border-line text-text-muted",
-                )}
-              >
-                S
-              </button>
-              <button
-                type="button"
-                aria-label="Remove layer"
-                onClick={() => removeTrack(t.id)}
-                className="flex size-10 items-center justify-center rounded-lg text-text-dim hover:text-danger active:bg-danger/10"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
     );
+  }
 
-  const lockButton = (
-    <button
-      type="button"
-      onClick={lock}
-      disabled={!hasChords}
-      title={hasChords ? undefined : "Add a chord to your progression first"}
-      className="flex h-12 items-center justify-center gap-2 rounded-xl bg-accent text-[15px] font-semibold text-black shadow-glow-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-    >
-      <Lock className="size-[18px]" />
-      Lock loop
-    </button>
-  );
-
-  // Step tabs (shared by desktop Focus mode + mobile).
-  const focusTabsEl = (
-    <div className="flex gap-1.5">
-      {(
-        [
-          ["chords", "Chords", `${tonic} ${mode === "major" ? "Maj" : "min"} · color`],
-          ["groove", "Groove", isComp ? "Comp" : "Pattern"],
-          [
-            "sound",
-            "Sound & feel",
-            `${lengthLabel(selection.noteLength)} · ${reverbLabel(selection.reverb)}`,
-          ],
-        ] as const
-      ).map(([id, label, sub]) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => setStepTab(id)}
-          className={cn(
-            "flex-1 rounded-xl border px-3 py-2 text-left",
-            stepTab === id
-              ? "border-transparent bg-accent text-black"
-              : "border-line-soft bg-bg-raised hover:bg-bg-higher",
-          )}
-        >
-          <div className="text-[12px] font-semibold">{label}</div>
-          <div
-            className={cn(
-              "truncate text-[10px]",
-              stepTab === id ? "text-black/70" : "text-text-dim",
-            )}
-          >
-            {sub}
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-
-  const mobileTabsEl = (
-    <div className="grid grid-cols-3 border-b border-line-soft">
-      {(
-        [
-          ["chords", "Chords"],
-          ["groove", "Groove"],
-          ["sound", "Mix"],
-        ] as const
-      ).map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => setStepTab(id)}
-          aria-pressed={stepTab === id}
-          className={cn(
-            "relative min-h-11 min-w-0 px-2 text-sm font-semibold transition-colors",
-            stepTab === id ? "text-accent" : "text-text-muted active:text-text",
-          )}
-        >
-          {label}
-          {stepTab === id ? (
-            <span className="absolute inset-x-6 bottom-0 h-0.5 rounded-full bg-accent" />
-          ) : null}
-        </button>
-      ))}
-    </div>
-  );
-
-  const mobileChordColor = activeStep.ext ?? chordQuality;
-  const mobileColorSeg = (
-    <div className="flex overflow-hidden rounded-full border border-line">
-      {(["triad", "7th", "9th"] as ChordExt[]).map((color) => (
-        <button
-          key={color}
-          type="button"
-          onClick={() =>
-            hasChords ? setStep({ ext: color }) : setChordQuality(color)
-          }
-          aria-pressed={mobileChordColor === color}
-          className={cn(
-            "min-h-10 px-3 text-[11px] font-semibold",
-            mobileChordColor === color
-              ? "bg-accent text-black"
-              : "text-text-muted",
-          )}
-        >
-          {color === "triad" ? "Triad" : color}
-        </button>
-      ))}
-    </div>
-  );
-
-  const mobileStartContent = (
-    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-center px-1 py-8 text-center">
-      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-accent/10 text-accent">
-        <PencilLine className="size-6" />
-      </div>
-      <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-        New loop · {tonic} {mode === "major" ? "major" : "minor"}
-      </p>
-      <h1 className="mt-2 font-display text-[30px] font-bold leading-tight tracking-tight">
-        Start with the changes
-      </h1>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-text-muted">
-        Get a progression instantly, or build one bar at a time. Groove and mix
-        come after the harmony is in place.
-      </p>
-      <div className="mt-7 grid gap-2.5 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={() => setMobileSheet("ideas")}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-accent px-5 text-base font-semibold text-black shadow-glow-accent"
-        >
-          <Sparkles className="size-5" />
-          Pick a progression
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileStartMode("chord")}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-line bg-bg-raised px-5 text-base font-semibold text-text active:bg-bg-higher"
-        >
-          Build chord by chord
-          <ChevronRight className="size-5" />
-        </button>
-      </div>
-    </div>
-  );
-
-  const mobileChordContent = (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          {!hasChords ? (
-            <button
-              type="button"
-              onClick={() => setMobileStartMode("landing")}
-              className="mb-2 text-xs font-semibold text-text-muted"
-            >
-              ← Change start method
-            </button>
-          ) : null}
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
-            {hasChords ? `Bar ${editIndex + 1}` : "First bar"}
-          </p>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">
-            {hasChords ? "Choose its chord" : "Choose your first chord"}
-          </h1>
-        </div>
-        {hasChords ? (
-          <button
-            type="button"
-            onClick={removeMobileStep}
-            aria-label={`Delete bar ${editIndex + 1}`}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full text-text-dim active:bg-danger/10 active:text-danger"
-          >
-            <Trash2 className="size-[18px]" />
-          </button>
-        ) : null}
-      </div>
-
-      <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-line-soft bg-bg-card px-3.5 py-2.5">
-        <span className="text-xs font-medium text-text-muted">Chord color</span>
-        {mobileColorSeg}
-      </div>
-
-      <DiatonicChords
-        tonic={tonic}
-        mode={mode}
-        ext={mobileChordColor}
-        current={hasChords ? activeStep : { root: "", quality: "" }}
-        onPick={pickChord}
-        layout="grid"
-        title={`Chords in ${tonic} ${mode === "major" ? "major" : "minor"}`}
-      />
-
-      <button
-        type="button"
-        onClick={() => setShowAllChords((value) => !value)}
-        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-line-soft text-sm font-semibold text-text-muted active:bg-bg-raised active:text-text"
-      >
-        {showAllChords ? "Hide outside chords" : "Use a chord outside the key"}
-      </button>
-      {showAllChords ? (
-        <ChordGrid
-          root={activeStep.root}
-          quality={activeStep.quality}
-          onRoot={(root) => pickChord(root, activeStep.quality)}
-          onQuality={(quality) => pickChord(activeStep.root, quality)}
-        />
-      ) : null}
-    </div>
-  );
-
-  const mobileGrooveContent = (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
-          Current part
-        </p>
-        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">
-          How should it play?
-        </h1>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setMobileSheet("instrument")}
-        className="flex min-h-14 items-center rounded-2xl border border-line bg-bg-raised px-4 text-left active:bg-bg-higher"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim">
-            Instrument
-          </div>
-          <div className="mt-0.5 truncate text-sm font-semibold text-text">
-            {getInstrument(selection.instrumentId).label}
-          </div>
-        </div>
-        <span className="mr-1 text-xs font-semibold text-accent">Change</span>
-        <ChevronRight className="size-4 text-accent" />
-      </button>
-
-      <section>
-        <div className="mb-2.5 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-display text-base font-semibold">Groove</h2>
-            <p className="mt-0.5 text-xs text-text-muted">
-              Tap a pattern to hear it immediately.
-            </p>
-          </div>
-          {customizeToggle}
-        </div>
-        <div className="flex flex-col gap-3">
-          <GrooveCards
-            options={grooveOptions}
-            selectedId={selectedGrooveId}
-            onSelect={onSelectGroove}
-          />
-          {isComp ? handsPanel : null}
-          {fineTunePanel}
-        </div>
-      </section>
-    </div>
-  );
-
-  const mobileMixContent = (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
-          Current part
-        </p>
-        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">
-          Shape the sound
-        </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          {getInstrument(selection.instrumentId).label} · {patternSummary(selection.pattern)}
-        </p>
-      </div>
-
-      <section className="rounded-2xl border border-line-soft bg-bg-card p-4">
-        {soundControls}
-      </section>
-
-      <section>
-        <div className="mb-2.5 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-base font-semibold">Layers</h2>
-            <p className="mt-0.5 text-xs text-text-muted">
-              Parts already playing with this loop.
-            </p>
-          </div>
-          <span className="flex size-8 items-center justify-center rounded-full bg-bg-raised font-mono text-xs text-text-muted">
-            {tracks.length}
-          </span>
-        </div>
-        {layersBlock}
-      </section>
-    </div>
-  );
-
-  const focusStepContent =
-    stepTab === "chords" ? (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
-          {colorSeg}
-          {tryRow}
-        </div>
-        {diatonicRow}
-      </div>
-    ) : stepTab === "groove" ? (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center">
-          <span className="text-[12px] text-text-muted">
-            {getInstrument(selection.instrumentId).label} groove
-          </span>
-          <div className="ml-auto">{customizeToggle}</div>
-        </div>
-        {grooveArea}
-      </div>
-    ) : (
-      <div className="flex flex-col gap-4">
-        {soundControls}
-      </div>
-    );
-
-  // ── Desktop center + right, per view mode ──
-  const centerFull = (
-    <div className="scrollbar-thin flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          {stepBadge(1)}
-          <h2 className="text-sm font-semibold">Write the progression</h2>
-          <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
-          {colorSeg}
-          <div className="ml-auto">{tryRow}</div>
-        </div>
-        <ProgressionCards
-          cards={progressionCards}
-          editIndex={editIndex}
-          onSelect={setEditIndex}
-          onAdd={addStep}
-          onRemove={removeStep}
-          onCycleColor={cycleColor}
-        />
-        {diatonicRow}
-      </section>
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          {stepBadge(2)}
-          <h2 className="text-sm font-semibold">Choose the groove</h2>
-          <span className="text-[12px] text-text-muted">
-            {getInstrument(selection.instrumentId).label}
-          </span>
-          <div className="ml-auto">{customizeToggle}</div>
-        </div>
-        {grooveArea}
-      </section>
-    </div>
-  );
-
-  const centerFocus = (
-    <div className="scrollbar-thin flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
-      <ProgressionCards
-        cards={progressionCards}
-        editIndex={editIndex}
-        onSelect={setEditIndex}
-        onAdd={addStep}
-        onRemove={removeStep}
-        onCycleColor={cycleColor}
-      />
-      {focusTabsEl}
-      <div className="min-h-0 flex-1">{focusStepContent}</div>
-    </div>
-  );
-
-  const rightFull = (
-    <aside className="scrollbar-thin flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
-      <div className="flex items-center gap-2">
-        {stepBadge(3)}
-        <h2 className="text-sm font-semibold">Shape &amp; lock</h2>
-      </div>
-      <div className="rounded-2xl border border-line bg-bg-raised p-4">
-        <div className="flex items-baseline gap-2">
-          <span className="font-display text-[15px] font-semibold">
-            {getInstrument(selection.instrumentId).label}
-          </span>
-          <span className="text-[11px] text-text-muted">
-            {patternSummary(selection.pattern)}
-          </span>
-        </div>
-        <div className="mt-3 flex gap-1.5 overflow-x-auto">
-          {progressionLabels.map((lab, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setEditIndex(i)}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-1.5 font-display text-[13px] font-semibold",
-                i === editIndex
-                  ? "bg-accent/15 text-accent"
-                  : "border border-line text-text-muted",
-              )}
-            >
-              {lab}
-            </button>
-          ))}
-        </div>
-        <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim">
-          {progression.length} bars · in {tonic} {mode === "major" ? "major" : "minor"}
-        </div>
-        <div className="mt-4">{soundControls}</div>
-      </div>
-      {lockButton}
-      <div>
-        <div className="mb-2 flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
-            Layers
-          </span>
-          <span className="font-mono text-[10px] text-text-muted">{tracks.length}</span>
-        </div>
-        {layersBlock}
-      </div>
-    </aside>
-  );
-
-  const rightFocus = (
-    <aside className="scrollbar-thin flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line-soft p-4">
-      <div className="rounded-2xl border border-line bg-bg-raised p-4">
-        <div className="flex items-baseline gap-2">
-          <span className="font-display text-[15px] font-semibold">This loop</span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim">
-            {progression.length} bars · {bpm} bpm
-          </span>
-        </div>
-        <div className="mt-3 flex gap-1.5 overflow-x-auto">
-          {progressionLabels.map((lab, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setEditIndex(i)}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-1.5 font-display text-[13px] font-semibold",
-                i === editIndex
-                  ? "bg-accent/15 text-accent"
-                  : "border border-line text-text-muted",
-              )}
-            >
-              {lab}
-            </button>
-          ))}
-        </div>
-        <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
-          Press <span className="font-semibold text-text">Play</span> to preview
-          this part over your locked layers.
-        </p>
-      </div>
-      {lockButton}
-      <div>
-        <div className="mb-2 flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim">
-            Layers
-          </span>
-          <span className="font-mono text-[10px] text-text-muted">{tracks.length}</span>
-        </div>
-        {layersBlock}
-      </div>
-    </aside>
-  );
+  const loopSectionName = anchorId ? (sectionOf(anchorId)?.name ?? null) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-bg">
-      {/* ── Desktop transport toolbar ── */}
-      <div className="hidden h-16 flex-shrink-0 items-center gap-4 border-b border-line-soft px-5 xl:flex">
-        <div>
-          <div className={railLabel}>Songwriter Studio</div>
-          <div className="mt-0.5 font-display text-base font-semibold">Untitled loop</div>
-        </div>
-        <div className="ml-4 flex items-center overflow-hidden rounded-full border border-line">
-          {(["full", "focus"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setViewMode(m)}
-              className={cn(
-                "px-3 py-1.5 text-[11px] font-semibold capitalize",
-                viewMode === m ? "bg-bg-higher text-text" : "text-text-muted",
-              )}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-        <div
-          className={cn(
-            "flex items-center gap-1.5 text-[10px]",
-            saveState === "error" ? "text-danger" : "text-text-dim",
-          )}
-          role="status"
-          aria-live="polite"
-        >
-          {saveState === "saved" ? <Check className="size-3" /> : null}
-          {saveState === "saving"
-            ? "Saving…"
-            : saveState === "saved"
-              ? "Saved on this device"
-              : "Couldn’t save locally"}
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleRestart}
-            aria-label="Restart"
-            className="flex size-9 items-center justify-center rounded-full border border-line text-text-muted hover:text-text"
-          >
-            <SkipBack className="size-[15px]" fill="currentColor" />
-          </button>
-          <button
-            type="button"
-            onClick={isPlaying ? handleStop : handlePlay}
-            aria-label={isPlaying ? "Stop" : "Play"}
-            className="flex size-[46px] items-center justify-center rounded-full bg-accent text-black shadow-glow-accent"
-          >
-            {isPlaying ? (
-              <Square className="size-[18px]" fill="currentColor" />
-            ) : (
-              <Play className="size-[18px]" fill="currentColor" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={handleStop}
-            aria-label="Stop"
-            className="flex size-9 items-center justify-center rounded-full border border-line text-text-muted hover:text-text"
-          >
-            <Square className="size-[13px]" fill="currentColor" />
-          </button>
-        </div>
-        <div className="h-7 w-px bg-line-soft" />
-        <div className="flex items-center gap-3">
-          <div>
-            <div className="text-[10px] tracking-[0.12em] text-text-dim">BPM</div>
-            <div className="font-mono text-lg font-semibold leading-tight text-accent">{bpm}</div>
-          </div>
-          <input
-            type="range"
-            min={60}
-            max={180}
-            step={1}
-            value={bpm}
-            aria-label="Tempo (BPM)"
-            onChange={(e) => setBpm(Number(e.target.value))}
-            className="h-4 w-28 accent-accent"
-          />
-        </div>
-        <div className="h-7 w-px bg-line-soft" />
-        <div className="flex items-center gap-2">
-          <Volume2 className="size-[18px] text-text-muted" />
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={masterVolume}
-            aria-label="Master volume"
-            onChange={(e) => setMasterVolume(Number(e.target.value))}
-            className="h-4 w-24 accent-accent"
-          />
-        </div>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto xl:overflow-hidden">
+      <Transport
+        song={song}
+        isPlaying={isPlaying}
+        loopMode={loopMode}
+        loopSectionName={loopSectionName}
+        songSelected={selection.kind === "song"}
+        saveState={saveState}
+        onPlay={handlePlay}
+        onStop={handleStop}
+        onBpm={(v) => update((s) => ({ ...s, bpm: v }))}
+        onKey={(tonic: string, mode: Mode) => update((s) => ({ ...s, tonic, mode }))}
+        onLoopMode={changeLoopMode}
+        onSelectSong={() => setSelection({ kind: "song" })}
+        onExportMidi={exportMidi}
+      />
 
-      {/* ── Desktop 3-panel (3a) ── */}
-      <div className="hidden min-h-0 flex-1 xl:flex">
-        {/* instruments */}
-        <aside className="scrollbar-thin flex w-56 shrink-0 flex-col gap-2 overflow-y-auto border-r border-line-soft p-3">
-          <div className={`${railLabel} px-2`}>Instrument</div>
-          <div className="flex flex-col gap-0.5">
-            {getInstrumentRows({
-              value: selection.instrumentId,
-              locked: lockedInstruments,
-              onSelect: selectInstrument,
-            })}
-          </div>
-        </aside>
+      <Arrangement
+        song={song}
+        selection={selection}
+        isPlaying={isPlaying}
+        getPlayhead={getPlayhead}
+        onSelect={select}
+        onClipOn={clipOn}
+        onAddSection={addSection}
+        onAddTrack={addTrack}
+        onMute={(id, muted) => updateTrack(id, (t) => ({ ...t, muted }))}
+        onSolo={(id, solo) => updateTrack(id, (t) => ({ ...t, solo }))}
+      />
 
-        {viewMode === "full" ? centerFull : centerFocus}
-        {viewMode === "full" ? rightFull : rightFocus}
-      </div>
-
-      {/* ── Mobile / tablet: focus tabs (3b) ── */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:hidden">
-        <div className="flex flex-shrink-0 items-center gap-2 border-b border-line-soft px-3.5 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] sm:px-5">
-          <Link
-            href="/"
-            aria-label="Leave Studio"
-            className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line-soft text-text-muted active:bg-bg-higher"
-          >
-            <ChevronLeft className="size-5" />
-          </Link>
-          <div className="min-w-0">
-            <div className="truncate font-display text-[16px] font-semibold sm:text-[17px]">
-              Untitled loop
-            </div>
-            <div
-              className={cn(
-                "mt-0.5 flex items-center gap-1 text-[10px]",
-                saveState === "error" ? "text-danger" : "text-text-dim",
-              )}
-              role="status"
-              aria-live="polite"
-            >
-              {saveState === "saved" ? <Check className="size-3" /> : null}
-              {saveState === "saving"
-                ? "Saving…"
-                : saveState === "saved"
-                  ? "Saved on this device"
-                  : "Couldn’t save locally"}
-            </div>
-          </div>
-          <div className="ml-auto shrink-0">
-            <KeySelect tonic={tonic} mode={mode} onTonic={setTonic} onMode={setMode} />
-          </div>
-        </div>
-
-        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-hidden">
-          {hasChords ? (
-            <MobileProgression
-              cards={progressionCards}
-              editIndex={editIndex}
-              onSelect={setEditIndex}
-              onAdd={addStep}
-              onIdeas={() => setMobileSheet("ideas")}
-            />
-          ) : null}
-
-          {hasChords ? (
-            <div className="flex-shrink-0 px-4 pt-2 sm:px-5">{mobileTabsEl}</div>
-          ) : null}
-
-          <div className="scrollbar-thin min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-5 sm:px-5 md:pb-8">
-            {!hasChords && mobileStartMode === "landing"
-              ? mobileStartContent
-              : stepTab === "chords"
-                ? mobileChordContent
-                : stepTab === "groove"
-                  ? mobileGrooveContent
-                  : mobileMixContent}
-          </div>
-        </div>
-        {hasChords ? (
-          <TransportBar
-            isPlaying={isPlaying}
-            bpm={bpm}
-            masterVolume={masterVolume}
-            onToggle={isPlaying ? handleStop : handlePlay}
-            onBpm={setBpm}
-            onMasterVolume={setMasterVolume}
-            canLock={hasChords}
-            layerCount={tracks.length}
-            onLock={layerAndStartNextPart}
-          />
-        ) : null}
-
-        {mobileSheet === "ideas" ? (
-          <MobileStudioSheet
-            title={hasChords ? "Progression ideas" : "Choose a starting point"}
-            description={
-              hasChords
-                ? "Picking one replaces the current bars. Your groove, sound, and layers stay intact."
-                : `Every option is built in ${tonic} ${mode === "major" ? "major" : "minor"}. You can change any bar afterward.`
-            }
-            onClose={() => setMobileSheet(null)}
-          >
-            <Suggestions
-              onApply={applyTemplateFromSheet}
-              layout="grid"
-              title={hasChords ? "Replace the progression" : "Pick a shape"}
-              description="Start familiar, then change whatever you want."
-            />
-            {hasChords ? (
-              <div className="mt-7 border-t border-line-soft pt-6">
-                <StylePresets onApply={applyStyleFromSheet} layout="grid" />
-              </div>
-            ) : null}
-          </MobileStudioSheet>
-        ) : null}
-
-        {mobileSheet === "instrument" ? (
-          <MobileStudioSheet
-            title="Choose an instrument"
-            description="This changes the part you are building. Existing layers keep their own sounds."
-            onClose={() => setMobileSheet(null)}
-          >
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {INSTRUMENTS.map((instrument) => {
-                const active = instrument.id === selection.instrumentId;
-                const layered = lockedInstruments.has(instrument.id);
-                return (
-                  <button
-                    key={instrument.id}
-                    type="button"
-                    onClick={() => selectMobileInstrument(instrument.id)}
-                    className={cn(
-                      "flex min-h-14 flex-col justify-center rounded-xl border px-3 text-left",
-                      active
-                        ? "border-accent bg-accent/10 text-accent"
-                        : "border-line bg-bg-raised text-text active:bg-bg-higher",
-                    )}
-                  >
-                    <span className="text-sm font-semibold">{instrument.label}</span>
-                    {active || layered ? (
-                      <span className="mt-0.5 text-[10px] font-medium text-text-muted">
-                        {active ? "Current part" : "Already layered"}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </MobileStudioSheet>
-        ) : null}
-      </div>
+      <section
+        aria-label="Inspector"
+        className="scrollbar-thin shrink-0 border-t border-line-soft bg-bg-card pb-[calc(4.25rem+env(safe-area-inset-bottom))] xl:h-[42vh] xl:max-h-[460px] xl:min-h-[300px] xl:overflow-y-auto xl:pb-0"
+      >
+        <div className="p-4">{inspector}</div>
+      </section>
     </div>
   );
-}
-
-// Instrument list rows with locked / editing status tags.
-function getInstrumentRows({
-  value,
-  locked,
-  onSelect,
-}: {
-  value: InstrumentId;
-  locked: Set<InstrumentId>;
-  onSelect: (id: InstrumentId) => void;
-}) {
-  return INSTRUMENTS.map((inst) => {
-    const active = inst.id === value;
-    const isLocked = locked.has(inst.id);
-    return (
-      <button
-        key={inst.id}
-        type="button"
-        onClick={() => onSelect(inst.id)}
-        className={cn(
-          "flex h-[38px] items-center rounded-[10px] px-2.5 text-left text-sm transition-colors",
-          active
-            ? "bg-accent/[0.12] font-semibold text-accent"
-            : "text-text-soft hover:bg-bg-raised",
-        )}
-      >
-        {inst.label}
-        {active ? (
-          <span className="ml-auto text-[10px] font-medium text-accent/80">editing</span>
-        ) : isLocked ? (
-          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-ok">
-            <Lock className="size-2.5" />
-            locked
-          </span>
-        ) : null}
-      </button>
-    );
-  });
 }

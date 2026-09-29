@@ -15,28 +15,37 @@ Upload a song, analyze its chords/tempo/key in the browser, and everyone joins a
 synced room to play their part (instrument + style views, host transport, synced
 lyrics). This is the original Bandirector flow, now one part of the app.
 
-## 2. Songwriter Studio — *shipped*
+## 2. Songwriter Studio — *shipped (v2: whole songs)*
 
-A chord + loop workstation for writing songs:
+A GarageBand-style sketchpad for getting a whole song idea down fast, then
+taking it somewhere else to finish:
 
-- A **chord progression** — build an unlimited sequence (C · Am · F · G); the
-  changes are global and every layer follows them in sync.
-- A **step sequencer** — program a 16-step pattern per part. Melodic
-  instruments toggle which steps fire and pick an articulation (strum / block /
-  arpeggio / root / octave); drums get a row per voice (kick/snare/hat/…).
-  Presets seed the grid, then everything is editable.
-- **Groove + feel** — swing and humanize (micro-timing + velocity) so loops
-  breathe instead of sounding quantized.
-- A **loop player** that previews the current selection with real instrument
-  samples (smplr soundfonts + drum machine).
-- **Lock-and-layer** — lock a loop and it joins a multi-track rack; every locked
-  loop plays together, sample-accurately in sync, under one global BPM and bar
-  clock. Per-track mute / solo / volume.
+- **Sections** — Intro / Verse / Pre-chorus / Chorus / Bridge / Solo / Outro,
+  each with its own chord progression (one bar per chord, looping to fill the
+  section's length), reorderable, duplicable, colour-coded.
+- **An arrangement grid** — one row per instrument, one column per section.
+  A filled block means the instrument plays there; a dashed one means it sits
+  out. Click to bring an instrument in, double-click (or Delete) to take it
+  out. The block shows the groove it plays and stretches with the section's
+  length, so the whole song is readable at a glance.
+- **Grooves** — every instrument has a default step pattern (melodic hits +
+  articulation, a drum grid, or a two-hand keyboard comp) and any block can be
+  given its own for just that section.
+- **Chords that mean what they say** — the progression editor shows the
+  chords in the song key; Triads / 7ths / 9ths rewrites the section's chords
+  rather than hiding a global colour setting. A MIDI keyboard can play chords
+  straight in.
+- **Transport** — play the whole song, loop the selected section, or play from
+  a section. One lookahead scheduler keeps every part sample-accurate under a
+  shared BPM + bar clock; a playhead runs across the grid.
+- **Export MIDI** — a format-1 Standard MIDI File with one track per
+  instrument, GM program changes, drums on channel 10, section markers and the
+  tempo, so the sketch lands in GarageBand / Logic / Ableton on separate tracks.
 
 Audio is browser-only: one shared `AudioContext`, a custom lookahead scheduler
 (the Web Audio "two clocks" pattern), and smplr for real GM instrument timbres.
-The current Studio arrangement is versioned and autosaved locally, so refreshing
-or reopening the app resumes the progression, layers, patterns, and mix.
+The song autosaves locally (and the previous single-loop Studio project is
+lifted into a one-section song the first time the page opens).
 
 ## 3. Song Coach ("how to play a song") — *shipped (v1)*
 
@@ -73,8 +82,8 @@ and Jams, "what to learn next" suggestions.
 
 ### Next workflow upgrades
 
-- Named projects, cloud sync, sharing, and MIDI / audio export.
-- Song sections (verse / chorus), tempo automation, and arrangement transforms.
+- Named projects, cloud sync, sharing, and audio export.
+- Tempo automation, per-bar chord splits, and arrangement transforms.
 - Analysis confidence review and correction history before a song enters a Jam.
 - Adaptive Coach practice plans and Learn-to-song recommendations.
 - Jam lobby readiness, role-aware stages, rehearsal marks, and session recaps.

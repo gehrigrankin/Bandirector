@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import type { Mode } from "@/lib/music/chord";
-import { ROOTS } from "@/components/studio/types";
+import { ROOTS } from "@/lib/song/model";
 
 interface Props {
   tonic: string;
