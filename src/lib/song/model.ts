@@ -55,7 +55,9 @@ export type SectionKind =
   | "chorus"
   | "bridge"
   | "solo"
-  | "outro";
+  | "breakdown"
+  | "outro"
+  | "other";
 
 export const SECTION_KINDS: { id: SectionKind; label: string; bars: number }[] = [
   { id: "intro", label: "Intro", bars: 4 },
@@ -64,7 +66,9 @@ export const SECTION_KINDS: { id: SectionKind; label: string; bars: number }[] =
   { id: "chorus", label: "Chorus", bars: 8 },
   { id: "bridge", label: "Bridge", bars: 8 },
   { id: "solo", label: "Solo", bars: 8 },
+  { id: "breakdown", label: "Breakdown", bars: 8 },
   { id: "outro", label: "Outro", bars: 4 },
+  { id: "other", label: "Other", bars: 8 },
 ];
 
 export interface Section {

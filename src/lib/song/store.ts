@@ -85,7 +85,7 @@ const chordStepSchema = z.object({
 
 const sectionSchema = z.object({
   id: z.string().min(1).max(80),
-  kind: z.enum(["intro", "verse", "prechorus", "chorus", "bridge", "solo", "outro"]),
+  kind: z.enum(["intro", "verse", "prechorus", "chorus", "bridge", "solo", "breakdown", "outro", "other"]),
   name: z.string().min(1).max(40),
   bars: z.number().int().min(1).max(32),
   progression: z.array(chordStepSchema).max(64),

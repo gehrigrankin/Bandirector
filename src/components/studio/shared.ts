@@ -15,7 +15,9 @@ export const SECTION_COLORS: Record<SectionKind, { fill: string; text: string }>
   chorus: { fill: "#f5a524", text: "#1a1200" },
   bridge: { fill: "#a78bfa", text: "#170f2e" },
   solo: { fill: "#f0655a", text: "#2a0b08" },
+  breakdown: { fill: "#e879a8", text: "#2a0a1a" },
   outro: { fill: "#8c8c9a", text: "#121218" },
+  other: { fill: "#c9c9d4", text: "#121218" },
 };
 
 export const LABEL = "text-[10px] font-semibold uppercase tracking-[0.12em] text-text-dim";
