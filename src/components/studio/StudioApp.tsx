@@ -23,6 +23,7 @@ import {
   moveSection,
   nextSectionName,
   removeSection,
+  reorderSection,
   resolveTransportBar,
   SECTION_KINDS,
   setClip,
@@ -563,6 +564,7 @@ export function StudioApp() {
         onAddTrack={addTrack}
         onMute={(id, muted) => updateTrack(id, (t) => ({ ...t, muted }))}
         onSolo={(id, solo) => updateTrack(id, (t) => ({ ...t, solo }))}
+        onReorderSection={(id, to) => update((s) => reorderSection(s, id, to))}
       />
 
       <section
