@@ -19,10 +19,9 @@ function readChunks(bytes: Uint8Array): { tag: string; body: Uint8Array }[] {
 }
 
 /** Walk a track body message by message (the writer never uses running
- *  status) and count note-ons / note-offs. */
-function countNotes(body: Uint8Array): { on: number; off: number } {
-  let on = 0;
-  let off = 0;
+ *  status) and return the channel-message status bytes in order. */
+function statuses(body: Uint8Array): number[] {
+  const out: number[] = [];
   let i = 0;
   const vlq = () => {
     let v = 0;
@@ -37,15 +36,24 @@ function countNotes(body: Uint8Array): { on: number; off: number } {
     const status = body[i++];
     if (status === 0xff) {
       i++; // meta type
-      i += vlq();
+      const len = vlq(); // (not `i += vlq()`: that reads i before vlq moves it)
+      i += len;
       continue;
     }
     const hi = status & 0xf0;
-    if (hi === 0x90 && body[i + 1] > 0) on++;
-    if (hi === 0x80) off++;
+    // Note-on with velocity 0 is a note-off in disguise; report it as such.
+    out.push(hi === 0x90 && body[i + 1] === 0 ? 0x80 | (status & 0x0f) : status);
     i += hi === 0xc0 || hi === 0xd0 ? 1 : 2;
   }
-  return { on, off };
+  return out;
+}
+
+function countNotes(body: Uint8Array): { on: number; off: number } {
+  const st = statuses(body);
+  return {
+    on: st.filter((s) => (s & 0xf0) === 0x90).length,
+    off: st.filter((s) => (s & 0xf0) === 0x80).length,
+  };
 }
 
 describe("songToMidi", () => {
@@ -98,11 +106,11 @@ describe("songToMidi", () => {
     const chunks = readChunks(songToMidi(song));
     const drums = chunks[2].body;
     const guitar = chunks[3].body;
-    expect(Array.from(drums).some((b) => b === 0x99)).toBe(true); // note-on, channel 10
-    expect(Array.from(drums).some((b) => (b & 0xf0) === 0xc0)).toBe(false);
-    const pc = Array.from(guitar).findIndex((b) => b === 0xc0);
-    expect(pc).toBeGreaterThan(-1);
-    expect(guitar[pc + 1]).toBe(25); // steel-string acoustic
+    expect(statuses(drums)).toContain(0x99); // note-on, channel 10
+    expect(statuses(drums).some((s) => (s & 0xf0) === 0xc0)).toBe(false);
+    expect(statuses(guitar)).toContain(0xc0);
+    const pc = Array.from(guitar).findIndex((b, i) => b === 0xc0 && guitar[i + 1] === 25);
+    expect(pc).toBeGreaterThan(-1); // steel-string acoustic
   });
 });
 

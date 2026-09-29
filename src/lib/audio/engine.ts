@@ -64,9 +64,9 @@ function resolveDrumName(logical: string, names: string[]): string | null {
     case "snare":
       return find(/snare/i) ?? find(/clap/i);
     case "hihat":
-      return find(/clos.*hat|hat.*clos|hi-?hat|closed/i) ?? find(/hat/i);
+      return find(/clos.*hat|hat.*clos|hi-?hat|closed|\bch\b|hhc/i) ?? find(/hat|hh/i);
     case "openhat":
-      return find(/open.*hat|hat.*open|open/i) ?? find(/hat/i);
+      return find(/open.*hat|hat.*open|open|\boh\b|hho/i) ?? find(/hat|hh/i);
     case "clap":
       return find(/clap/i) ?? find(/snare/i);
     default:
@@ -202,7 +202,7 @@ class Engine {
 
     let instrument: SmplrInstrument;
     if (def.isDrums) {
-      instrument = DrumMachine(ctx, { destination: gain });
+      instrument = DrumMachine(ctx, { destination: gain, instrument: def.kit });
     } else {
       // MusyngKite is the richer, more natural-sounding of smplr's two kits.
       instrument = Soundfont(ctx, {
@@ -352,7 +352,7 @@ class Engine {
     send.connect(this.convolver!);
 
     const instrument: SmplrInstrument = def.isDrums
-      ? DrumMachine(ctx, { destination: gain })
+      ? DrumMachine(ctx, { destination: gain, instrument: def.kit })
       : Soundfont(ctx, { instrument: def.gm, destination: gain, kit: "MusyngKite" });
 
     const handle: Handle = {
