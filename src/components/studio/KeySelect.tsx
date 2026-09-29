@@ -7,12 +7,11 @@ import { ROOTS } from "@/lib/song/model";
 interface Props {
   tonic: string;
   mode: Mode;
-  onTonic: (t: string) => void;
-  onMode: (m: Mode) => void;
+  onChange: (tonic: string, mode: Mode) => void;
 }
 
 /** Compact key picker — a dropdown, not thirteen pills. */
-export function KeySelect({ tonic, mode, onTonic, onMode }: Props) {
+export function KeySelect({ tonic, mode, onChange }: Props) {
   return (
     <label className="relative inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-xs text-text-soft">
       <span className="text-text-muted">Key</span>
@@ -25,8 +24,7 @@ export function KeySelect({ tonic, mode, onTonic, onMode }: Props) {
         value={`${tonic}|${mode}`}
         onChange={(e) => {
           const [t, m] = e.target.value.split("|");
-          onTonic(t);
-          onMode(m as Mode);
+          onChange(t, m as Mode);
         }}
         className="absolute inset-0 cursor-pointer opacity-0"
       >

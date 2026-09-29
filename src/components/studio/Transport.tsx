@@ -106,8 +106,7 @@ export function Transport({
       <KeySelect
         tonic={song.tonic}
         mode={song.mode}
-        onTonic={(t) => onKey(t, song.mode)}
-        onMode={(m) => onKey(song.tonic, m)}
+        onChange={onKey}
       />
 
       <div className="flex items-center gap-2 sm:ml-auto">
