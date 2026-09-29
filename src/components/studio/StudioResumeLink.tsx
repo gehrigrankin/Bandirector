@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { totalBars, type Song } from "@/lib/song/model";
-import { loadSong } from "@/lib/song/store";
+import { currentProject } from "@/lib/song/library";
 
 export function StudioResumeLink() {
   const [song, setSong] = useState<Song | null>(null);
 
   useEffect(() => {
-    setSong(loadSong());
+    setSong(currentProject()?.song ?? null);
   }, []);
 
   if (!song) {
