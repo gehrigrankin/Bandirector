@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getEngine, type ScheduledTrack } from "@/lib/audio/engine";
-import { getInstrument, type InstrumentId } from "@/lib/audio/instruments";
+import { DEFAULT_DRUM_KIT, getInstrument, type InstrumentId } from "@/lib/audio/instruments";
 import { STEP_COUNT, defaultPattern, type Pattern } from "@/lib/audio/patterns";
 import type { ChordExt, Mode } from "@/lib/music/chord";
 import {
@@ -324,7 +324,14 @@ export function StudioApp() {
       const clips = Object.fromEntries(
         Object.entries(t.clips).map(([k, c]) => [k, { on: c.on }]),
       );
-      return { ...t, instrumentId, octave: def.octave, pattern: defaultPattern(def.family), clips };
+      return {
+        ...t,
+        instrumentId,
+        kit: def.isDrums ? DEFAULT_DRUM_KIT : undefined,
+        octave: def.octave,
+        pattern: defaultPattern(def.family),
+        clips,
+      };
     });
 
   const setClipPattern = (trackId: string, sectionId: string, pattern: Pattern) =>

@@ -35,10 +35,6 @@ const instrumentIdSchema = z.enum([
   "bass",
   "piano",
   "drums",
-  "drums_lm2",
-  "drums_cr8000",
-  "drums_rz1",
-  "drums_mfb512",
   "electric_piano",
   "organ",
   "synth_pad",
@@ -100,9 +96,30 @@ const clipSchema = z.object({
   pattern: patternSchema.optional(),
 });
 
-const trackSchema = z.object({
+const kitSchema = z.enum(["LM-2", "TR-808", "Roland CR-8000", "Casio-RZ1", "MFB-512"]);
+
+// Briefly, kits were separate instrument ids; fold those back into Drums + kit.
+const TEMP_KIT_IDS: Record<string, z.infer<typeof kitSchema>> = {
+  drums_lm2: "LM-2",
+  drums_cr8000: "Roland CR-8000",
+  drums_rz1: "Casio-RZ1",
+  drums_mfb512: "MFB-512",
+};
+
+const trackSchema = z.preprocess(
+  (raw) => {
+    if (raw && typeof raw === "object" && "instrumentId" in raw) {
+      const t = raw as { instrumentId: string; kit?: string };
+      const kit = TEMP_KIT_IDS[t.instrumentId];
+      if (kit) return { ...t, instrumentId: "drums", kit };
+      if (t.instrumentId === "drums" && !t.kit) return { ...t, kit: "TR-808" };
+    }
+    return raw;
+  },
+  z.object({
   id: z.string().min(1).max(80),
   instrumentId: instrumentIdSchema,
+  kit: kitSchema.optional(),
   pattern: patternSchema,
   octave: z.number().int().min(0).max(8),
   volume: z.number().min(0).max(1),
@@ -111,7 +128,8 @@ const trackSchema = z.object({
   noteLength: z.number().min(0.3).max(2),
   reverb: z.number().min(0).max(1),
   clips: z.record(z.string(), clipSchema),
-});
+  }),
+);
 
 const songSchema = z.object({
   title: z.string().max(80),
@@ -204,6 +222,7 @@ export function songFromLegacy(raw: unknown): Song | null {
     tracks: parts.map((t) => ({
       id: newId("t"),
       instrumentId: t.instrumentId,
+      kit: t.instrumentId === "drums" ? ("TR-808" as const) : undefined,
       pattern: t.pattern,
       octave: Math.max(0, Math.min(8, t.octave)),
       volume: Math.max(0, Math.min(1, t.volume)),

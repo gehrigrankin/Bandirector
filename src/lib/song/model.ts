@@ -11,7 +11,9 @@
 // autosave, and the MIDI export can all agree on what bar N means.
 
 import {
+  DEFAULT_DRUM_KIT,
   getInstrument,
+  type DrumKitId,
   type InstrumentId,
 } from "@/lib/audio/instruments";
 import {
@@ -90,6 +92,8 @@ export interface Clip {
 export interface Track {
   id: string;
   instrumentId: InstrumentId;
+  /** Which sampled drum machine a drum track plays through. */
+  kit?: DrumKitId;
   pattern: Pattern; // default pattern for every section
   octave: number;
   volume: number; // 0..1
@@ -162,6 +166,7 @@ export function createTrack(instrumentId: InstrumentId): Track {
   return {
     id: newId("t"),
     instrumentId,
+    kit: def.isDrums ? DEFAULT_DRUM_KIT : undefined,
     pattern: defaultPattern(def.family),
     octave: def.octave,
     volume: 0.85,

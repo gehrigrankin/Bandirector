@@ -76,4 +76,15 @@ describe("parseSong", () => {
     expect(parseSong({ ...song, sections: [] })).toBeNull();
     expect(parseSong({ ...song, bpm: 999 })).toBeNull();
   });
+
+  it("folds the short-lived per-kit drum instruments back into Drums + kit", () => {
+    const song = createSong();
+    const drums = { ...createTrack("drums"), instrumentId: "drums_cr8000" as never, kit: undefined };
+    const parsed = parseSong(JSON.parse(JSON.stringify({ ...song, tracks: [drums] })));
+    expect(parsed?.tracks[0].instrumentId).toBe("drums");
+    expect(parsed?.tracks[0].kit).toBe("Roland CR-8000");
+    // Drum tracks saved before kits existed were playing the 808.
+    const old = { ...createTrack("drums"), kit: undefined };
+    expect(parseSong(JSON.parse(JSON.stringify({ ...song, tracks: [old] })))?.tracks[0].kit).toBe("TR-808");
+  });
 });

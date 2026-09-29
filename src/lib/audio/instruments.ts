@@ -11,10 +11,6 @@ export type InstrumentId =
   | "bass"
   | "piano"
   | "drums"
-  | "drums_lm2"
-  | "drums_cr8000"
-  | "drums_rz1"
-  | "drums_mfb512"
   | "electric_piano"
   | "organ"
   | "synth_pad"
@@ -30,8 +26,6 @@ export interface InstrumentDef {
   /** GM soundfont name passed to smplr's Soundfont (ignored when isDrums). */
   gm: string;
   isDrums?: boolean;
-  /** smplr drum-machine kit name (drums only). */
-  kit?: string;
   /** Default root octave (scientific pitch, C4 = 60). */
   octave: number;
   family: StyleFamily;
@@ -67,12 +61,7 @@ export const INSTRUMENTS: InstrumentDef[] = [
     octave: 4,
     family: "keys",
   },
-  // Drum kits — each is a different sampled drum machine.
-  { id: "drums_lm2", label: "Drums · LinnDrum", gm: "", isDrums: true, kit: "LM-2", octave: 0, family: "drums" },
-  { id: "drums", label: "Drums · TR-808", gm: "", isDrums: true, kit: "TR-808", octave: 0, family: "drums" },
-  { id: "drums_cr8000", label: "Drums · CR-8000", gm: "", isDrums: true, kit: "Roland CR-8000", octave: 0, family: "drums" },
-  { id: "drums_rz1", label: "Drums · Casio RZ-1", gm: "", isDrums: true, kit: "Casio-RZ1", octave: 0, family: "drums" },
-  { id: "drums_mfb512", label: "Drums · MFB-512", gm: "", isDrums: true, kit: "MFB-512", octave: 0, family: "drums" },
+  { id: "drums", label: "Drums", gm: "", isDrums: true, octave: 0, family: "drums" },
 
   // More keys
   {
@@ -106,6 +95,19 @@ export const INSTRUMENTS: InstrumentDef[] = [
   },
   { id: "cello", label: "Cello", gm: "cello", octave: 3, family: "sustain" },
 ];
+
+/** The sampled drum machines a drum track can play through (smplr kits). */
+export type DrumKitId = "LM-2" | "TR-808" | "Roland CR-8000" | "Casio-RZ1" | "MFB-512";
+
+export const DRUM_KITS: { id: DrumKitId; label: string; hint: string }[] = [
+  { id: "LM-2", label: "LinnDrum", hint: "Punchy, most natural" },
+  { id: "TR-808", label: "TR-808", hint: "Deep boomy electronic" },
+  { id: "Roland CR-8000", label: "CR-8000", hint: "Crisp, tight" },
+  { id: "Casio-RZ1", label: "Casio RZ-1", hint: "Lo-fi 80s" },
+  { id: "MFB-512", label: "MFB-512", hint: "Analog, dry" },
+];
+
+export const DEFAULT_DRUM_KIT: DrumKitId = "LM-2";
 
 const BY_ID: Record<string, InstrumentDef> = Object.fromEntries(
   INSTRUMENTS.map((i) => [i.id, i]),
