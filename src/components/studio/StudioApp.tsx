@@ -454,6 +454,7 @@ export function StudioApp() {
         onLoopMode={changeLoopMode}
         onSelectSong={() => setSelection({ kind: "song" })}
         onExportMidi={exportMidi}
+        onNewSong={newSong}
       />
 
       <Arrangement
