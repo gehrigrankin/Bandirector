@@ -5,7 +5,7 @@
 
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { getInstrument, INSTRUMENTS, type InstrumentId } from "@/lib/audio/instruments";
+import { DRUM_KITS, getInstrument, INSTRUMENTS, type DrumKitId, type InstrumentId } from "@/lib/audio/instruments";
 import type { Pattern } from "@/lib/audio/patterns";
 import { isPlaying, type Song, type Track } from "@/lib/song/model";
 import { PatternEditor } from "@/components/studio/PatternEditor";
@@ -54,6 +54,23 @@ export function TrackInspector({
             ))}
           </select>
         </div>
+        {def.isDrums ? (
+          <div>
+            <div className={LABEL}>Kit</div>
+            <select
+              aria-label="Drum kit"
+              value={track.kit ?? "LM-2"}
+              onChange={(e) => onChange({ kit: e.target.value as DrumKitId })}
+              className="mt-0.5 h-9 rounded-lg border border-line bg-bg-input px-2 text-[13px] font-semibold text-text outline-none focus:border-accent"
+            >
+              {DRUM_KITS.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.label} — {k.hint}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         {!def.isDrums ? (
           <div className="flex h-9 items-center self-end rounded-lg border border-line">
             <button

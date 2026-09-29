@@ -54,6 +54,7 @@ export function buildScheduledTracks(
   return song.tracks.map((track) => ({
     id: track.id,
     instrumentId: track.instrumentId,
+    kit: track.kit,
     volume: track.volume,
     muted: track.muted,
     solo: track.solo,

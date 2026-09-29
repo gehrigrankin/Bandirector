@@ -32,6 +32,8 @@ export interface BarEvent {
 export interface ScheduledTrack {
   id: string;
   instrumentId: string;
+  /** Drum machine kit (drums only). */
+  kit?: string;
   volume: number; // 0..1
   muted: boolean;
   solo: boolean;
@@ -44,6 +46,7 @@ type SmplrInstrument = ReturnType<typeof Soundfont> | ReturnType<typeof DrumMach
 
 interface Handle {
   instrumentId: string;
+  kit?: string;
   gain: GainNode;
   send: GainNode; // reverb send
   instrument: SmplrInstrument;
@@ -185,7 +188,8 @@ class Engine {
 
   private ensureHandle(track: ScheduledTrack): Handle {
     const existing = this.handles.get(track.id);
-    if (existing && existing.instrumentId === track.instrumentId) return existing;
+    if (existing && existing.instrumentId === track.instrumentId && existing.kit === track.kit)
+      return existing;
     if (existing) this.disposeHandle(existing);
 
     const ctx = this.context();
@@ -202,7 +206,7 @@ class Engine {
 
     let instrument: SmplrInstrument;
     if (def.isDrums) {
-      instrument = DrumMachine(ctx, { destination: gain, instrument: def.kit });
+      instrument = DrumMachine(ctx, { destination: gain, instrument: track.kit });
     } else {
       // MusyngKite is the richer, more natural-sounding of smplr's two kits.
       instrument = Soundfont(ctx, {
@@ -214,6 +218,7 @@ class Engine {
 
     const handle: Handle = {
       instrumentId: track.instrumentId,
+      kit: track.kit,
       gain,
       send,
       instrument,
@@ -352,7 +357,7 @@ class Engine {
     send.connect(this.convolver!);
 
     const instrument: SmplrInstrument = def.isDrums
-      ? DrumMachine(ctx, { destination: gain, instrument: def.kit })
+      ? DrumMachine(ctx, { destination: gain })
       : Soundfont(ctx, { instrument: def.gm, destination: gain, kit: "MusyngKite" });
 
     const handle: Handle = {
