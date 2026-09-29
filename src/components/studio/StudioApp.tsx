@@ -35,7 +35,18 @@ import {
   type Transport as TransportState,
 } from "@/lib/song/model";
 import { buildScheduledTracks } from "@/lib/song/render";
-import { loadSong, saveSong } from "@/lib/song/store";
+import {
+  createProject,
+  currentProject,
+  deleteProject,
+  listProjects,
+  openProject,
+  parseProjectFile,
+  projectFileName,
+  saveProject,
+  serializeProject,
+  type ProjectMeta,
+} from "@/lib/song/library";
 import { midiFileName, songToMidi } from "@/lib/song/midi";
 import { Arrangement, type PlayheadPosition } from "@/components/studio/Arrangement";
 import { Transport } from "@/components/studio/Transport";
@@ -51,6 +62,8 @@ export function StudioApp() {
   const engine = useMemo(() => getEngine(), []);
 
   const [song, setSong] = useState<Song | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectMeta[]>([]);
   const [selection, setSelection] = useState<Selection>({ kind: "song" });
   const [loopMode, setLoopMode] = useState<LoopMode>("song");
   const [anchorId, setAnchorId] = useState<string | null>(null); // section to loop
@@ -65,14 +78,20 @@ export function StudioApp() {
   const scheduledRef = useRef<ScheduledTrack[]>([]);
 
   // Restore after mount so server and client render the same empty shell.
-  useEffect(() => {
-    const loaded = loadSong() ?? createSong();
+  const show = useCallback((id: string, loaded: Song) => {
+    setProjectId(id);
     setSong(loaded);
     const first = loaded.sections[0]?.id ?? null;
     setSelection(first ? { kind: "section", sectionId: first } : { kind: "song" });
     setAnchorId(first);
     setPlayFromId(first);
   }, []);
+
+  useEffect(() => {
+    const project = currentProject() ?? createProject(createSong());
+    show(project.id, project.song);
+    setProjects(listProjects());
+  }, [show]);
 
   const read = useCallback(
     () => ({ song: songRef.current!, transport: transportRef.current }),
@@ -104,11 +123,14 @@ export function StudioApp() {
 
   // Autosave (debounced so sequencer taps don't hammer localStorage).
   useEffect(() => {
-    if (!song) return;
+    if (!song || !projectId) return;
     setSaveState("saving");
-    const t = window.setTimeout(() => setSaveState(saveSong(song) ? "saved" : "error"), 400);
+    const t = window.setTimeout(() => {
+      setSaveState(saveProject(projectId, song) ? "saved" : "error");
+      setProjects(listProjects());
+    }, 400);
     return () => window.clearTimeout(t);
-  }, [song]);
+  }, [song, projectId]);
 
   // Step playhead for the pattern editor, off the audio clock.
   useEffect(() => {
@@ -328,15 +350,81 @@ export function StudioApp() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const newSong = () => {
-    if (!window.confirm("Start a new song? The current one on this device is replaced.")) return;
+  const download = (text: string, name: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  /** Flush the open song to its project before switching away from it. */
+  const flush = () => {
+    if (song && projectId) saveProject(projectId, song);
+  };
+
+  const switchTo = (id: string, loaded: Song) => {
     handleStop();
-    const fresh = createSong();
-    update(() => fresh);
-    const first = fresh.sections[0].id;
-    setSelection({ kind: "section", sectionId: first });
-    setAnchorId(first);
-    setPlayFromId(first);
+    flush();
+    show(id, loaded);
+    saveProject(id, loaded); // marks it as the open project right away
+    setProjects(listProjects());
+  };
+
+  const newSong = () => {
+    flush();
+    const project = createProject(createSong());
+    switchTo(project.id, project.song);
+  };
+
+  const openSong = (id: string) => {
+    if (id === projectId) return;
+    const project = openProject(id);
+    if (project) switchTo(project.id, project.song);
+  };
+
+  const duplicateSong = () => {
+    if (!song) return;
+    flush();
+    const copy = createProject({ ...song, title: `${song.title || "Untitled song"} copy` });
+    switchTo(copy.id, copy.song);
+  };
+
+  const deleteSong = () => {
+    if (!song || !projectId) return;
+    if (!window.confirm(`Delete "${song.title || "Untitled song"}"? This can't be undone.`)) return;
+    handleStop();
+    deleteProject(projectId);
+    const next = currentProject() ?? createProject(createSong());
+    show(next.id, next.song);
+    setProjects(listProjects());
+  };
+
+  const exportFile = () => {
+    if (!song) return;
+    download(serializeProject(song), projectFileName(song), "application/json");
+  };
+
+  const importFile = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const loaded = parseProjectFile(await file.text());
+      if (!loaded) {
+        window.alert("That file isn't a Bandirector song.");
+        return;
+      }
+      flush();
+      const project = createProject(loaded);
+      switchTo(project.id, project.song);
+    };
+    input.click();
   };
 
   // Space plays/stops; Delete takes the selected block out of its section.
@@ -454,7 +542,14 @@ export function StudioApp() {
         onLoopMode={changeLoopMode}
         onSelectSong={() => setSelection({ kind: "song" })}
         onExportMidi={exportMidi}
+        projects={projects}
+        currentProjectId={projectId}
+        onOpenProject={openSong}
         onNewSong={newSong}
+        onDuplicateSong={duplicateSong}
+        onDeleteSong={deleteSong}
+        onExportFile={exportFile}
+        onImportFile={importFile}
       />
 
       <Arrangement

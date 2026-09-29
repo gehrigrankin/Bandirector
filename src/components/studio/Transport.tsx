@@ -1,10 +1,12 @@
 "use client";
 
-import { Download, FilePlus2, Minus, Play, Plus, Square } from "lucide-react";
+import { ChevronDown, Download, ListMusic, Minus, Play, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Mode } from "@/lib/music/chord";
 import type { Song } from "@/lib/song/model";
+import type { ProjectMeta } from "@/lib/song/library";
 import { KeySelect } from "@/components/studio/KeySelect";
+import { Menu } from "@/components/studio/Menu";
 
 interface Props {
   song: Song;
@@ -20,7 +22,22 @@ interface Props {
   onLoopMode: (mode: "song" | "section") => void;
   onSelectSong: () => void;
   onExportMidi: () => void;
+  projects: ProjectMeta[];
+  currentProjectId: string | null;
+  onOpenProject: (id: string) => void;
   onNewSong: () => void;
+  onDuplicateSong: () => void;
+  onDeleteSong: () => void;
+  onExportFile: () => void;
+  onImportFile: () => void;
+}
+
+function when(ts: number): string {
+  const d = new Date(ts);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export function Transport({
@@ -37,8 +54,36 @@ export function Transport({
   onLoopMode,
   onSelectSong,
   onExportMidi,
+  projects,
+  currentProjectId,
+  onOpenProject,
   onNewSong,
+  onDuplicateSong,
+  onDeleteSong,
+  onExportFile,
+  onImportFile,
 }: Props) {
+  const others = projects.filter((p) => p.id !== currentProjectId);
+  const menuItems = [
+    { id: "new", label: "New song" },
+    { id: "duplicate", label: "Duplicate this song" },
+    { id: "export", label: "Export song file" },
+    { id: "import", label: "Import song file…" },
+    ...(projects.length > 1 ? [{ id: "delete", label: "Delete this song" }] : []),
+    ...others.map((p) => ({
+      id: `open:${p.id}`,
+      label: p.title,
+      hint: `${p.tracks} ${p.tracks === 1 ? "part" : "parts"} · ${when(p.updatedAt)}`,
+    })),
+  ];
+  const pick = (id: string) => {
+    if (id === "new") onNewSong();
+    else if (id === "duplicate") onDuplicateSong();
+    else if (id === "delete") onDeleteSong();
+    else if (id === "export") onExportFile();
+    else if (id === "import") onImportFile();
+    else if (id.startsWith("open:")) onOpenProject(id.slice(5));
+  };
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-soft bg-[#0d0d11] px-3 py-2 sm:px-4">
       <button
@@ -124,15 +169,24 @@ export function Transport({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onNewSong}
-          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line px-3 text-[11.5px] font-semibold text-text-soft hover:bg-bg-raised"
-          title="Start a blank song (the current one is replaced)"
-        >
-          <FilePlus2 className="size-3.5" />
-          New
-        </button>
+        <Menu
+          title={others.length > 0 ? "Your songs" : undefined}
+          align="left"
+          trigger={
+            <span className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line px-3 text-[11.5px] font-semibold text-text-soft hover:bg-bg-raised">
+              <ListMusic className="size-3.5" />
+              Songs
+              {projects.length > 1 ? (
+                <span className="rounded-full bg-bg-higher px-1.5 font-mono text-[10px] text-text-muted">
+                  {projects.length}
+                </span>
+              ) : null}
+              <ChevronDown className="size-3 text-text-dim" />
+            </span>
+          }
+          items={menuItems}
+          onPick={pick}
+        />
         <button
           type="button"
           onClick={onExportMidi}

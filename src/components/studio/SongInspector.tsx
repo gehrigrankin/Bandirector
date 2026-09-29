@@ -82,13 +82,14 @@ export function SongInspector({ song, onChange, onExportMidi, onNewSong }: Props
         <button
           type="button"
           onClick={onNewSong}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-line px-4 text-[12.5px] font-semibold text-text-muted hover:border-danger/40 hover:text-danger"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-line px-4 text-[12.5px] font-semibold text-text-soft hover:bg-bg-raised"
         >
-          <FilePlus2 className="size-4" /> Start a new song
+          <FilePlus2 className="size-4" /> New song
         </button>
       </div>
       <p className="text-[11.5px] leading-relaxed text-text-muted">
-        The MIDI file has one track per instrument, a marker at every section, and the tempo
+        Every song is saved on this device as you edit; open, duplicate, or delete
+        songs from the Songs menu in the header. The MIDI file has one track per instrument, a marker at every section, and the tempo
         baked in — drop it into your DAW and every part lands on its own track, ready to
         swap sounds and build out.
       </p>
