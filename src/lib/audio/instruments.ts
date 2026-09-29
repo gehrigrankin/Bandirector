@@ -11,6 +11,10 @@ export type InstrumentId =
   | "bass"
   | "piano"
   | "drums"
+  | "drums_lm2"
+  | "drums_cr8000"
+  | "drums_rz1"
+  | "drums_mfb512"
   | "electric_piano"
   | "organ"
   | "synth_pad"
@@ -26,6 +30,8 @@ export interface InstrumentDef {
   /** GM soundfont name passed to smplr's Soundfont (ignored when isDrums). */
   gm: string;
   isDrums?: boolean;
+  /** smplr drum-machine kit name (drums only). */
+  kit?: string;
   /** Default root octave (scientific pitch, C4 = 60). */
   octave: number;
   family: StyleFamily;
@@ -61,7 +67,12 @@ export const INSTRUMENTS: InstrumentDef[] = [
     octave: 4,
     family: "keys",
   },
-  { id: "drums", label: "Drums", gm: "", isDrums: true, octave: 0, family: "drums" },
+  // Drum kits — each is a different sampled drum machine.
+  { id: "drums_lm2", label: "Drums · LinnDrum", gm: "", isDrums: true, kit: "LM-2", octave: 0, family: "drums" },
+  { id: "drums", label: "Drums · TR-808", gm: "", isDrums: true, kit: "TR-808", octave: 0, family: "drums" },
+  { id: "drums_cr8000", label: "Drums · CR-8000", gm: "", isDrums: true, kit: "Roland CR-8000", octave: 0, family: "drums" },
+  { id: "drums_rz1", label: "Drums · Casio RZ-1", gm: "", isDrums: true, kit: "Casio-RZ1", octave: 0, family: "drums" },
+  { id: "drums_mfb512", label: "Drums · MFB-512", gm: "", isDrums: true, kit: "MFB-512", octave: 0, family: "drums" },
 
   // More keys
   {
